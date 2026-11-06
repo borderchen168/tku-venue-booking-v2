@@ -2,7 +2,7 @@
 id: T-001
 title: 系統架構、ERD、API 與路由設計
 story: [US-013, US-001, US-017, US-002, US-004]
-status: todo        # todo / in-progress / review / done / blocked
+status: done        # todo / in-progress / review / done / blocked
 assignee: system-analyst
 branch: feature/T-001-architecture-design
 sprint: sprint-01
@@ -23,7 +23,8 @@ Sprint 1 所有開發 Task 的設計基礎。依 AGENTS.md 1.4 分層原則與 S
    ADR-003 需說明未來重疊檢查如何把固定保留時段納入佔用判斷（Sprint 1 不實作）。
 3. **不補件**：無「退回補件」狀態，退回即駁回，由學生重新申請。
 4. **學期區間**：暫定每年 9/1～12/31（上學期）、3/1～6/30（下學期）。請在 ADR 或 erd.md 說明設定方式
-   （例如以單一來源常數 / `.env` 設定月日區間，或 `semesters` 資料表），並說明如何依日期判斷所屬學期，供 US-009 固定保留時段與 US-018 寒暑假時段使用。Sprint 1 只需完成設計，不實作。
+   （例如以單一來源常數 / `.env` 設定月日區間，或 `semesters` 資料表），並說明如何依日期判斷所屬學期，供 US-009 固定保留時段與 US-018 寒暑假時段使用。
+   **Sprint 1 即需實作「依日期判斷是否在學期區間內」**：US-004 AC17 規定學期以外的日期一律拒絕（T-019 使用）；固定保留時段與寒暑假時段仍只需設計。
 
 ## 完成條件
 - [ ] `docs/architecture/overview.md`：分層架構（routers → services → repositories → models）、模組清單與各 Task 對應的檔案位置。
@@ -51,11 +52,13 @@ Sprint 1 所有開發 Task 的設計基礎。依 AGENTS.md 1.4 分層原則與 S
 ## 審查紀錄
 | 日期 | 角色 | 結論 | 備註 |
 |---|---|---|---|
+| 2026-11-06 | code-reviewer | 需修改 → 通過 | 共 4 輪；第 1～3 輪 blocking：WAL 寫入交易、BUSY extended code、模組負責 Task、表單限制無效、route 走訪測試；第 4 版通過，剩餘 non-blocking 已寫入 T-008、T-019、T-020、T-023 |
+| 2026-11-06 | security-reviewer | 需修改 → 通過 | 第 1 輪 blocking：登入鎖定 TOCTOU；第 2、3 輪通過，non-blocking 已於第 3、4 版處理 |
 
 ## DoD(完成定義)
 - [ ] ruff check / ruff format --check / mypy 通過（不適用：純文件）
 - [ ] pytest 通過，branch coverage ≥ 80%（不適用：純文件）
-- [ ] Code Review 通過（設計審查）
-- [ ] Security Review 通過（Session、CSRF、鎖定、個資欄位設計）
-- [ ] QA 驗收通過（設計涵蓋所有選入 Story 的 AC）
-- [ ] 文件與 .env.example 已更新
+- [x] Code Review 通過（設計審查）
+- [x] Security Review 通過（Session、CSRF、鎖定、個資欄位設計）
+- [ ] QA 驗收通過（設計涵蓋所有選入 Story 的 AC）——未另行執行：依使用者指示於 Code Review 通過後合併；設計對 AC 的涵蓋由 Code Reviewer 第 1 輪確認，Story 驗收時由 QA 一併檢查
+- [x] 文件已更新（.env.example 新增設定由 T-003 負責）

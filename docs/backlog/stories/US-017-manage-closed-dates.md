@@ -73,12 +73,13 @@ created: 2026-11-06
 ## Task 清單
 - [ ] T-001 系統架構、ERD、API 與路由設計
 - [ ] T-002 頁面流程、base layout 與 CSS 規範
-- [ ] T-003 專案骨架：FastAPI app、設定、日誌、錯誤處理與安全標頭
+- [ ] T-003 專案骨架：FastAPI app、設定、日誌、例外類別與時間工具
 - [ ] T-004 DB 連線、PRAGMA 與交易工具
 - [ ] T-005 Alembic 初始化與 Sprint 1 資料模型 migration
 - [ ] T-013 不開放期間 service
 - [ ] T-015 不開放期間管理頁
 - [ ] T-022 申請規則、併發與 Sprint Demo 端到端測試
+- [ ] T-023 HTTP 安全中介層、表單限制與統一錯誤處理
 
 ## DoR(就緒定義) 檢查
 - [x] 使用者價值明確

@@ -13,22 +13,26 @@ created: 2026-11-06
 # T-002 頁面流程、base layout 與 CSS 規範
 
 ## 說明
-依 T-001 的路由清單設計 Sprint 1 的頁面流程與版面，建立所有頁面共用的 Jinja2 base layout、共用 macro(巨集) 與 CSS，
-讓後續 Frontend Task 只需撰寫各頁內容區塊。
+依 T-001 的路由清單（`docs/architecture/routes.md`）設計 Sprint 1 的頁面流程與版面，建立所有頁面共用的 Jinja2 base layout、共用 macro(巨集)、全部錯誤頁與 CSS，
+讓後續 Frontend Task 只需撰寫各頁內容區塊。所有樣板必須相容 overview.md 第 8 節的 CSP(內容安全政策)（不允許 inline、不允許 `data:`）。
 
 ## 完成條件
-- [ ] `docs/design/sprint-01-page-flow.md`：頁面流程（訪客：場地清單 → 場地資訊 → 借用狀況；學生：登入 → 申請 → 結果；承辦人：登入 → 不開放期間管理）與各頁 wireframe(線框圖，文字或 ASCII 即可)。
-- [ ] `docs/design/style-guide.md`：色彩、字級、間距、按鈕、表單、狀態標籤（可申請／審核中／已核准／不開放）配色，符合 WCAG 2.1 AA 對比度。
-- [ ] `app/templates/base.html`：`<html lang="zh-Hant-TW">`、標題區塊、依登入狀態與角色顯示的導覽列（學生：我的申請、申請場地；承辦人：待審核、管理功能；Sprint 1 尚未實作的項目可先隱藏或標示）、登出按鈕（POST 表單，預留 `csrf_token` 欄位）、flash 訊息區、主內容區塊。
-- [ ] `app/templates/macros/forms.html`：表單欄位、逐欄錯誤訊息、隱藏 CSRF 欄位的 macro；錯誤訊息以 `aria-describedby` 關聯欄位。
-- [ ] `app/templates/errors/`：403、404、422、500 錯誤頁（不顯示任何技術細節）。
-- [ ] `app/static/css/main.css`：不依賴外部 CDN（配合 CSP `default-src 'self'`）；RWD(響應式設計) 支援手機寬度。
-- [ ] 不使用 inline script 與 inline style（配合 CSP）。
+- [ ] `docs/design/sprint-01-page-flow.md`：頁面流程（依 routes.md 第 6 節：訪客：場地清單 → 場地資訊 → 借用狀況；學生：登入 → 申請 → 結果；承辦人：登入 → 不開放期間管理）與各頁 wireframe(線框圖，文字或 ASCII 即可)。
+- [ ] `docs/design/style-guide.md`：色彩、字級、間距、按鈕、表單、狀態標籤（可申請／審核中／已核准／不開放（原因類型）／不開放（非學期期間））配色，符合 WCAG 2.1 AA 對比度；並寫入 routes.md 第 3、4 節的樣板變數與表單欄位名稱約定。
+- [ ] `app/templates/base.html`：`<html lang="zh-Hant-TW">`、標題區塊、依 `current_user` 角色顯示的導覽列（routes.md 2.1 `/` 說明：學生：申請場地；承辦人：不開放期間管理；Sprint 1 尚未實作的「我的申請」〔US-005〕、「待審核」〔US-006〕**隱藏**，不顯示「即將推出」或任何會導向 404 的連結，US-013 AC1）、登出按鈕（POST 表單，以 `forms.csrf_field()` 輸出 `csrf_token`）、flash 訊息區（`messages`）、主內容區塊。
+- [ ] `app/templates/macros/forms.html`：表單欄位、逐欄錯誤訊息（`errors` 字典，全域錯誤鍵 `__all__`）、`csrf_field()` macro；錯誤訊息以 `aria-describedby` 關聯欄位（routes.md 第 3 節）。
+- [ ] `app/templates/errors/`：`400.html`（表單解析失敗 / 欄位數超過上限，「請求格式不正確」）、`403.html`、`404.html`、`413.html`（chunked 本體過大，「送出的資料過大」）、`422.html`、`500.html`、`503.html`（「系統忙碌，請稍後再試」，含登入雜湊名額已滿）（routes.md 第 5 節、error-handling.md 第 3 節的訊息文字）；**每頁皆附「回首頁」連結**，可顯示 `request_id`（「錯誤代碼：…」），不顯示任何技術細節或使用者輸入值（error-handling.md 第 1 節原則 3）。
+  - **不需要 `415.html`**：415 與 TrustedHost 400、`Content-Length` 400 / 413 屬路由前錯誤，由 middleware 回純文字（error-handling.md 3.2）。
+  - `500.html` 與 `base.html` 必須在**沒有** `current_user` / `csrf_token` / `messages` 時也能渲染（500 可能發生在 Session 載入之前，context 值為 `None`，error-handling.md 3.2），導覽列顯示訪客版。
+- [ ] 所有 `<form>` 一律 `method="post"`（或 GET 查詢表單），**不得使用 `enctype="multipart/form-data"`**（非 urlencoded 的 POST 會被 415 擋下，routes.md 第 1 節、ADR-002 2.1）；style-guide 註明此規則。
+- [ ] `app/static/css/main.css`：不依賴外部 CDN；RWD(響應式設計) 支援手機寬度；圖示或背景不得使用 `data:` URI（CSP `img-src 'self'`）。
+- [ ] 樣板不得有 inline `<script>`、`<style>`、`style=` 屬性與任何 `on*=` 事件屬性（overview.md 第 8 節）；刪除確認等互動以獨立確認頁實作，不用 JS confirm。
 
 ## 技術備註
 - 可寫入：`docs/design/`、`app/templates/`、`app/static/`。
-- 樣板變數名稱（如 `current_user`、`csrf_token`、`messages`）需與 T-003、T-007 約定一致，請以 T-001 的 routes.md 為準並寫入 style-guide。
+- 樣板 context 變數（`current_user`、`csrf_token`、`messages`、`form`、`errors`、`app_timezone`）與 filter（`local_dt`、`status_label` 等）以 routes.md 第 3 節為唯一來源；列舉中文標籤一律用 filter，樣板不得自行寫死對照（overview.md 第 5 節）。
 - 禁止 `|safe` 與 `Markup()` 輸出使用者輸入。
+- 錯誤頁樣板未合併前，T-023 的 handler 會退回純文字 fallback（error-handling.md 3.3），兩者可平行開發。
 - 可與 T-003 平行進行。
 
 ## 審查紀錄
