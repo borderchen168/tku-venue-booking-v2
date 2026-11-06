@@ -1,0 +1,251 @@
+# AGENTS.md — 淡江場地預約系統 (tku-venue-booking) 專案規範
+
+本文件是所有 AI Agent(代理) 與開發者共同遵守的專案規範。Claude Code 透過 `CLAUDE.md` 匯入本文件。
+
+## 0. 語言
+
+- 全程使用**繁體中文(台灣)**用語與語法。
+- 專業名詞維持英文，第一次出現時後面加註中文，例如 Sprint(衝刺)、Pull Request(合併請求)。
+- 程式識別字（變數、函式、類別、檔名、資料表、欄位）一律使用英文。
+- 註解、docstring(文件字串)、文件、Backlog(待辦清單) 項目可使用繁體中文。
+- Commit message(提交訊息) 採 Conventional Commits(慣例式提交)：type 用英文，描述用繁體中文，例如 `feat(booking): 新增場地預約 API (T-012)`。
+
+---
+
+## 1. 技術棧
+
+| 類別 | 選用 |
+|---|---|
+| 語言 | Python 3.14+ |
+| 環境與套件 | `venv` + `pip`；相依套件宣告於 `pyproject.toml`，版本鎖定於 `requirements.lock` / `requirements-dev.lock`（以 `pip-tools` 產生） |
+| 後端 | FastAPI + Uvicorn |
+| 前端 | Jinja2 SSR(伺服器端渲染)，靜態檔放 `app/static/` |
+| 資料庫 | SQLite |
+| ORM(物件關聯對映) | SQLAlchemy 2.0 寫法（`DeclarativeBase`、`Mapped`、`mapped_column`），使用**同步** Session |
+| Schema 遷移 | Alembic |
+| 資料驗證 | Pydantic v2 |
+| 設定 | `pydantic-settings` 讀取 `.env` |
+| 密碼雜湊 | argon2（`argon2-cffi`） |
+| 測試 | pytest + pytest-cov |
+| 品質工具 | ruff（lint + format）、mypy（strict）、pre-commit、pip-audit |
+
+### 1.1 跨平台（Windows / macOS / Linux）
+
+- 路徑一律使用 `pathlib.Path`，禁止寫死 `/` 或 `\\` 分隔字元。
+- 不使用 `.sh`、`Makefile` 等只適用單一平台的腳本；常用指令一律以 `python -m <tool>` 形式寫在本文件。
+- 檔案編碼一律 UTF-8，`open()` 必須明確指定 `encoding='utf-8'`。
+- 換行字元由 `.gitattributes` 統一為 LF(換行)。
+- 不依賴特定 OS 的系統指令或套件。
+
+### 1.2 設定（.env）
+
+- 所有設定（秘密金鑰、資料庫路徑、環境別、Cookie 設定等）放在 `.env`，由 `app/core/config.py` 的 `Settings`（`pydantic-settings`）統一讀取。
+- `.env` **禁止提交**到 git；新增設定時必須同步更新 `.env.example`（只放範例值，不放真實秘密）。
+- 程式中禁止寫死秘密值或環境相依的設定。
+
+### 1.3 資料庫規則
+
+- 每個連線都必須啟用 `PRAGMA foreign_keys=ON`（SQLite 預設不檢查外鍵），並使用 `journal_mode=WAL`。
+- 所有 schema 變更都必須透過 Alembic migration，禁止手動修改資料庫或使用 `create_all()` 於正式環境。
+- 時間一律以 **UTC** 儲存（timezone-aware `datetime`），顯示時轉換為 `Asia/Taipei`。
+- **預約時段不可重疊**：SQLite 無法用 constraint(約束) 防止區間重疊，必須在同一個 transaction(交易) 中以 `BEGIN IMMEDIATE` 先檢查衝突再寫入，並有對應的測試（含併發情境）。
+- 禁止以字串拼接組 SQL；只能透過 ORM 或參數化查詢（`text()` 必須使用 bind parameter）。
+
+### 1.4 建議目錄結構
+
+```
+app/
+  main.py               # FastAPI app 建立、middleware、router 掛載
+  core/                 # config.py、db.py、security.py、logging.py
+  models/               # SQLAlchemy model
+  schemas/              # Pydantic schema
+  repositories/         # 資料存取層
+  services/             # 商業邏輯
+  routers/
+    web/                # 回傳 Jinja2 頁面的 route
+    api/                # 回傳 JSON 的 route
+  templates/            # Jinja2 樣板
+  static/               # CSS / JS / 圖片
+migrations/             # Alembic
+tests/
+  unit/
+  integration/
+docs/
+  backlog/              # Epic / Story / Task / Bug
+  sprints/              # 各 Sprint 文件
+  architecture/         # SA 產出：架構、ERD、決策紀錄（ADR）
+```
+
+分層原則：`routers` → `services` → `repositories` → `models`；router 不直接操作 Session，service 不處理 HTTP 細節。
+
+---
+
+## 2. Coding Rule(程式撰寫規範)
+
+### 2.1 風格
+
+- 遵循 PEP 8，所有函式參數與回傳值都必須有 Type Hints(型別提示)。
+- 字串使用 **single-quote(單引號)**。例外：docstring 與三引號字串依 PEP 257 使用 `"""`（ruff format 的固定行為）。
+- 每行長度 **≤ 140** 字元。
+- 縮排一律 **4 個空白**，禁止使用 tab。
+- 公開的 module、class、function 需有 docstring。
+
+### 2.2 自動檢查
+
+設定集中在 `pyproject.toml`，並透過 pre-commit 在每次 commit 前自動執行：
+
+```bash
+python -m ruff check --fix .
+python -m ruff format .
+python -m mypy app
+```
+
+- 不可用 `# noqa`、`# type: ignore` 規避檢查，除非附上原因註解，並經 Code Reviewer 同意。
+
+### 2.3 資訊安全規範
+
+以 **OWASP Top 10**、**OWASP ASVS 5.0**（基準 Level 1；認證、授權、Session 相關功能 Level 2）、**CWE Top 25** 為依據。以下為強制項目：
+
+| 主題 | 規則 |
+|---|---|
+| 存取控制（A01 / CWE-862, 863, 639） | 每個操作在 service 層檢查權限；存取預約等資源時必須驗證擁有者或角色，防止 IDOR(不安全的直接物件參照)。預設拒絕 |
+| 認證 | 本機自建帳號；密碼以 argon2 雜湊，禁止明碼或可逆加密；密碼長度至少 8 字元，並檢查常見密碼；登入失敗訊息不透露帳號是否存在；登入加 Rate Limit(頻率限制) 或鎖定機制 |
+| Session | Cookie 設定 `HttpOnly`、`SameSite=Lax`，正式環境 `Secure`；登入後重新產生 Session ID；登出時銷毀；設定閒置逾時 |
+| CSRF（CWE-352） | 所有會改變狀態的表單與請求（POST/PUT/PATCH/DELETE）都必須驗證 CSRF Token |
+| XSS（CWE-79） | Jinja2 autoescape 必須開啟；禁止使用 `|safe` 與 `Markup()` 輸出使用者輸入 |
+| Injection(注入)（CWE-89, 78） | 見 1.3；禁止 `eval`、`exec`、`pickle` 載入不可信資料、`subprocess` 搭配 `shell=True` |
+| 輸入驗證 | 所有外部輸入以 Pydantic schema 驗證（型別、長度、範圍、格式）；以白名單方式驗證 |
+| 錯誤處理 | 正式環境不回傳 stack trace(堆疊追蹤) 或內部錯誤細節 |
+| 日誌 | 記錄登入、權限拒絕、預約異動等安全事件；禁止記錄密碼、Token、完整個資 |
+| HTTP 標頭 | 設定 `Content-Security-Policy`、`X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy` |
+| 秘密管理 | 秘密只放 `.env`；`SECRET_KEY` 需為高強度亂數 |
+| 相依套件 | 定期執行 `python -m pip_audit`，有已知漏洞的版本不得合併 |
+
+---
+
+## 3. Team(團隊) 與流程
+
+### 3.1 角色與 Subagent(子代理)
+
+每個角色是 `.claude/agents/` 下獨立的 subagent。**主對話 (main session) 擔任 Orchestrator(協調者)**，依照 Scrum Master 規劃的流程分派工作給各 subagent（subagent 無法再呼叫其他 subagent）。
+
+| 角色 | Subagent | 職責 | 可寫入範圍 |
+|---|---|---|---|
+| Product Owner(產品負責人) | `product-owner` | 撰寫 Epic、Story、驗收條件，排定 Backlog 優先順序 | `docs/backlog/` |
+| Scrum Master(敏捷教練) | `scrum-master` | Sprint Planning(衝刺規劃) / Review(審查) / Retrospective(回顧)、拆解 Task、追蹤狀態 | `docs/sprints/`、`docs/backlog/` 的狀態欄位 |
+| System Analyst(系統分析師) | `system-analyst` | 需求分析、系統架構、API 設計、ADR(架構決策紀錄) | `docs/architecture/` |
+| UI/UX Designer(介面設計師) | `ui-ux-designer` | 頁面流程、版面、無障礙設計、樣板與 CSS 規範 | `docs/design/`、`app/templates/`、`app/static/` |
+| DBA(資料庫管理師) | `dba` | 資料模型、ERD、索引、Alembic migration | `app/models/`、`migrations/` |
+| Backend Developer(後端工程師) | `backend-developer` | API、service、repository、認證授權 | `app/`（templates/static 除外）、`tests/` |
+| Frontend Developer(前端工程師) | `frontend-developer` | Jinja2 樣板、表單、web route、前端互動 | `app/templates/`、`app/static/`、`app/routers/web/`、`tests/` |
+| Tester(測試工程師) | `tester` | 撰寫與執行 pytest、補足覆蓋率、回報 Bug | `tests/`、`docs/backlog/bugs/` |
+| Code Reviewer(程式審查員) | `code-reviewer` | 審查正確性、可讀性、規範符合度 | **唯讀** |
+| Security Reviewer(資安審查員) | `security-reviewer` | 依 2.3 審查資安風險 | **唯讀** |
+| QA(品質保證) | `qa` | 依驗收條件與 DoD 做最終驗收 | **唯讀** |
+
+- 審查類角色（Code Reviewer、Security Reviewer、QA）只回報結果，不直接修改程式；修正由開發角色處理。
+- 每個 Task 只呼叫需要的角色，不需每次全員參與。
+
+### 3.2 Scrum(敏捷開發) 流程
+
+- 一個 Sprint 以一個可展示的功能增量為目標。
+- 項目層級：**Epic(史詩) → Story(使用者故事) → Task(任務) / Bug(缺陷)**；Issue(議題) 用於未分類的問題或待釐清事項。
+- 所有項目以 Markdown 存放於本機 `docs/backlog/`，範本在 `docs/backlog/_templates/`。
+
+| 類型 | 編號 | 檔名範例 |
+|---|---|---|
+| Epic | `EP-001` | `docs/backlog/epics/EP-001-venue-management.md` |
+| Story | `US-001` | `docs/backlog/stories/US-001-book-venue.md` |
+| Task | `T-001` | `docs/backlog/tasks/T-001-booking-api.md` |
+| Bug | `BUG-001` | `docs/backlog/bugs/BUG-001-overlap-check.md` |
+| Issue | `IS-001` | `docs/backlog/issues/IS-001-sso-evaluation.md` |
+
+- 狀態流程：`todo → in-progress → review → done`（另有 `blocked`），記錄於檔案的 frontmatter(檔頭屬性)。
+- Story 的驗收條件使用 Given / When / Then 格式。
+- Sprint 文件放在 `docs/sprints/sprint-NN/`：`planning.md`、`review.md`、`retro.md`。
+
+**DoR(就緒定義)**：Story 有明確的使用者價值、驗收條件、估點（Story Point(故事點數)），且沒有未解決的相依項目。
+
+**DoD(完成定義)**：
+1. 程式碼在獨立的 branch / worktree 完成。
+2. `ruff check`、`ruff format --check`、`mypy` 全部通過。
+3. `pytest` 全部通過，branch coverage(分支覆蓋率) ≥ 80%。
+4. Code Reviewer 與 Security Reviewer 審查通過（無未解決的 blocking 問題）。
+5. QA 依驗收條件驗收通過。
+6. 文件與 `.env.example` 已同步更新，Backlog 狀態改為 `done`。
+
+### 3.3 測試
+
+- 使用 pytest 風格（不使用 `unittest.TestCase`）。
+- `tests/unit/`：單元測試，外部相依以 fixture 或 mock 取代。
+- `tests/integration/`：以 FastAPI `TestClient` 測試 route 與資料庫。
+- 每個測試使用獨立的暫存 SQLite 資料庫，不可使用開發用資料庫。
+- 覆蓋率門檻設定在 `pyproject.toml`（`--cov-branch --cov-fail-under=80`），未達標即視為失敗。
+- 每個 Bug 修正都必須先寫出能重現問題的測試。
+- 安全相關功能（權限、CSRF、登入）必須有負面測試（驗證會被拒絕）。
+
+### 3.4 Branch(分支) 與 Worktree(工作樹)
+
+- `main` 永遠保持可執行、測試全過；禁止直接在 `main` 上開發。
+- 每個 Task / Bug / Issue 各開一個 branch，並在獨立的 worktree 執行：
+
+| 類型 | Branch 命名 |
+|---|---|
+| Task（功能） | `feature/T-012-booking-api` |
+| Bug | `bugfix/BUG-003-overlap-check` |
+| Issue | `chore/IS-004-update-deps` |
+
+```bash
+git worktree add .worktrees/T-012-booking-api -b feature/T-012-booking-api
+```
+
+- 每個 worktree 需要建立自己的 `.venv` 與 `.env`，SQLite 檔案也獨立，避免互相影響。
+- 合併前先 rebase 到最新的 `main`；若 Alembic 出現多個 head，必須先解決再合併。
+- 通過 DoD 後以 squash merge(壓縮合併) 合併回 `main`，再移除 worktree 與 branch：
+
+```bash
+git switch main
+git merge --squash feature/T-012-booking-api
+git commit
+git worktree remove .worktrees/T-012-booking-api
+git branch -D feature/T-012-booking-api
+```
+
+- 目前只使用本機 repository(儲存庫)；之後加入 remote(遠端) 時，改為 Pull Request 流程。
+
+---
+
+## 4. 常用指令
+
+```bash
+# 建立環境（Windows 啟用方式：.venv\Scripts\activate）
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip pip-tools
+python -m piptools compile --extra dev -o requirements-dev.lock pyproject.toml
+python -m piptools compile -o requirements.lock pyproject.toml
+python -m pip install -r requirements-dev.lock
+python -m pip install -e . --no-deps
+pre-commit install
+
+# 設定
+cp .env.example .env        # Windows：copy .env.example .env
+
+# 執行
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload
+
+# 品質檢查
+python -m ruff check --fix .
+python -m ruff format .
+python -m mypy app
+python -m pytest
+python -m pip_audit -r requirements.lock
+```
+
+---
+
+## 5. 後續階段（目前不實作）
+
+- 加入 GitHub 等 remote repository，改用 Pull Request 流程與 CI(持續整合)。
+- 評估改用學校 SSO(單一登入) 取代本機帳號。

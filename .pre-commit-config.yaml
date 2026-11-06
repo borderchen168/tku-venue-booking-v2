@@ -1,0 +1,20 @@
+# 使用本機 venv 內的工具，版本由 requirements-dev.lock 鎖定
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: python -m ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: python -m ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: python -m mypy app
+        language: system
+        types: [python]
+        pass_filenames: false
