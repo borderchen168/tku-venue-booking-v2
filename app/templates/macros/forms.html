@@ -1,0 +1,190 @@
+{#-
+    macros/forms.html — 共用表單巨集（T-002，規範見 docs/design/style-guide.md 第 7 節）
+
+    使用方式（每個需要表單的樣板都要自行 import，且必須 with context，
+    巨集才能讀到 context processor 注入的 csrf_token，以及頁面的 form / errors）：
+
+        {% import 'macros/forms.html' as forms with context %}
+
+    約定（docs/architecture/routes.md 第 3、4 節）：
+    - csrf_token：str | None；以 forms.csrf_field() 輸出隱藏欄位 name="csrf_token"。
+    - form：dict[str, str]，欄位名 → 已填值（密碼不回填）。
+    - errors：dict[str, str]，欄位名 → 錯誤訊息；全域錯誤鍵為 '__all__'。
+    - 欄位 id 預設為 'field-<name>'；錯誤訊息 id 為 '<id>-error'、說明文字 id 為 '<id>-help'，
+      皆以 aria-describedby 關聯到欄位。
+    - 所有輸出皆經 autoescape；本檔不得使用 |safe 或 Markup()。
+    - 本檔只輸出欄位，不輸出 <form>；<form> 一律 method="post"（或查詢用 method="get"），
+      不得使用 enctype="multipart/form-data"（非 urlencoded 的 POST 會被 415 擋下）。
+    - 不接受任意 HTML 屬性（只有具名參數白名單），避免產生 on*= 或 style= 屬性（CSP）。
+
+    空白控制（環境開啟 trim_blocks 與 lstrip_blocks，style-guide 7.6）：
+    - 獨佔一行的 {% %} 標籤不加 '-'，整行（含縮排與換行）會自動消失。
+    - 只在兩處用 '-'：
+      (1) {%- endmacro %}：去掉巨集本體最後的換行，讓呼叫端那一行的換行決定斷行，不產生空行；
+      (2) 多行屬性的 {%- if ... %}：把屬性接回同一個 HTML 標籤（一個標籤輸出為一行）。
+    - _label_block 的輸出固定以換行結尾，呼叫端以 {{ ... -}} 接續下一個標籤。
+-#}
+{# ---------- 內部 helper ---------- #}
+{# 標籤、必填標示、說明文字與錯誤訊息（輸出在控制項之前，螢幕閱讀器依序讀到）；輸出固定以換行結尾 #}
+{% macro _label_block(field_id, label, required, help, message) %}
+<label class="field__label" for="{{ field_id }}">{{ label }}{% if required %}<span class="field__required">（必填）</span>{% endif %}</label>
+{% if help %}
+<p class="field__help" id="{{ field_id }}-help">{{ help }}</p>
+{% endif %}
+{% if message %}
+<p class="field__error" id="{{ field_id }}-error"><span class="visually-hidden">錯誤：</span>{{ message }}</p>
+{% endif %}
+{% endmacro %}
+{# ---------- 公開巨集 ---------- #}
+{#
+    csrf_field()：輸出 CSRF 隱藏欄位。所有 method="post" 的表單都必須呼叫。
+    csrf_token 為 None 或未定義時輸出空值（伺服器端會以 403 拒絕），樣板不會因此渲染失敗。
+#}
+{% macro csrf_field() %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token if (csrf_token is defined and csrf_token is not none) else '' }}">
+{%- endmacro %}
+{#
+    hidden(name, value)：一般隱藏欄位。value 必須由呼叫端明確提供。
+    登入表單的 next 只能寫成 forms.hidden('next', next_path)：next_path 是 route 已以 is_safe_next() 過濾的值，
+    不得直接讀 request.query_params['next']；next 也不得放進任何 <a href>、<form action> 或 meta refresh（routes.md 2.6）。
+#}
+{% macro hidden(name, value) %}
+<input type="hidden" name="{{ name }}" value="{{ value if value is not none else '' }}">
+{%- endmacro %}
+{#
+    form_errors(title='送出失敗，請修正以下問題', id='error-summary')：錯誤摘要。
+    - errors['__all__']（全域錯誤，例如「該時段已被借用」「系統忙碌，請稍後再試」）以段落顯示。
+    - 其他欄位錯誤依 errors 的順序列為連結，點擊跳到 #field-<name>
+      （欄位若以 id 參數自訂 id，摘要連結會失效，兩者請勿同時使用）。
+    - 空字串訊息一律忽略（不列出、不計數）。
+    - role="alert"：重新渲染後螢幕閱讀器會立即朗讀。
+    - title：標題文字；GET 查詢錯誤（例如週檢視 week_start）請傳合適標題，例如「無法顯示所選的週」。
+    - id：外框 id，標題 id 為 '<id>-title'；同一頁出現兩次時請傳不同 id，避免 id 重複。
+    放在 <form> 之內、第一個欄位之前。沒有錯誤時輸出空字串。
+#}
+{% macro form_errors(title='送出失敗，請修正以下問題', id='error-summary') %}
+{% set errs = errors if (errors is defined and errors is mapping) else {} %}
+{% set has_global = ('__all__' in errs and errs['__all__']) %}
+{% set ns = namespace(count=0) %}
+{% for key, msg in errs.items() if key != '__all__' and msg %}
+{% set ns.count = ns.count + 1 %}
+{% endfor %}
+{% if has_global or ns.count > 0 %}
+<div class="error-summary" id="{{ id }}" role="alert" aria-labelledby="{{ id }}-title">
+    <h2 class="error-summary__title" id="{{ id }}-title">{{ title }}</h2>
+    {% if has_global %}
+    <p>{{ errs['__all__'] }}</p>
+    {% endif %}
+    {% if ns.count > 0 %}
+    <ul>
+        {% for key, msg in errs.items() if key != '__all__' and msg %}
+        <li><a href="#field-{{ key }}">{{ msg }}</a></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{%- endif %}
+{% endmacro %}
+{#
+    input(name, label, ...)：單行輸入欄位。
+    - type 只接受白名單：text、password、date、number、email、tel、search（其他值一律視為 text）。
+    - password 欄位永遠不輸出 value（routes.md 第 1 節「保留已填資料（密碼除外）」）。
+    - value：明確指定時覆蓋 form[name]；未指定時取 form[name]。
+    - short=true：較窄的欄位（日期、人數）。
+#}
+{% macro input(name, label, type='text', required=false, help=none, id=none, value=none, autocomplete=none,
+               maxlength=none, minlength=none, min=none, max=none, step=none, inputmode=none, pattern=none,
+               short=false) %}
+{% set field_id = id if id else 'field-' ~ name %}
+{% set input_type = type if type in ('text', 'password', 'date', 'number', 'email', 'tel', 'search') else 'text' %}
+{% set message = errors[name] if (errors is defined and errors is mapping and name in errors and errors[name]) else '' %}
+{% set describedby = ([(field_id ~ '-help') if help else '', (field_id ~ '-error') if message else ''] | select | join(' ')) %}
+{% if value is not none %}
+{% set field_value = value %}
+{% elif form is defined and form is mapping and name in form and form[name] is not none %}
+{% set field_value = form[name] %}
+{% else %}
+{% set field_value = '' %}
+{% endif %}
+<div class="field{% if message %} field--error{% endif %}">
+{{ _label_block(field_id, label, required, help, message) -}}
+<input class="field__control{% if short %} field__control--short{% endif %}" type="{{ input_type }}" id="{{ field_id }}" name="{{ name }}"
+    {%- if input_type != 'password' %} value="{{ field_value }}"{% endif %}
+    {%- if required %} required{% endif %}
+    {%- if autocomplete is not none %} autocomplete="{{ autocomplete }}"{% endif %}
+    {%- if maxlength is not none %} maxlength="{{ maxlength }}"{% endif %}
+    {%- if minlength is not none %} minlength="{{ minlength }}"{% endif %}
+    {%- if min is not none %} min="{{ min }}"{% endif %}
+    {%- if max is not none %} max="{{ max }}"{% endif %}
+    {%- if step is not none %} step="{{ step }}"{% endif %}
+    {%- if inputmode is not none %} inputmode="{{ inputmode }}"{% endif %}
+    {%- if pattern is not none %} pattern="{{ pattern }}"{% endif %}
+    {%- if message %} aria-invalid="true"{% endif %}
+    {%- if describedby %} aria-describedby="{{ describedby }}"{% endif %}>
+</div>
+{%- endmacro %}
+{#
+    textarea(name, label, ...)：多行文字欄位。
+#}
+{% macro textarea(name, label, required=false, help=none, id=none, value=none, rows=5, maxlength=none, minlength=none) %}
+{% set field_id = id if id else 'field-' ~ name %}
+{% set message = errors[name] if (errors is defined and errors is mapping and name in errors and errors[name]) else '' %}
+{% set describedby = ([(field_id ~ '-help') if help else '', (field_id ~ '-error') if message else ''] | select | join(' ')) %}
+{% if value is not none %}
+{% set field_value = value %}
+{% elif form is defined and form is mapping and name in form and form[name] is not none %}
+{% set field_value = form[name] %}
+{% else %}
+{% set field_value = '' %}
+{% endif %}
+<div class="field{% if message %} field--error{% endif %}">
+{{ _label_block(field_id, label, required, help, message) -}}
+<textarea class="field__control" id="{{ field_id }}" name="{{ name }}" rows="{{ rows | int }}"
+    {%- if required %} required{% endif %}
+    {%- if maxlength is not none %} maxlength="{{ maxlength }}"{% endif %}
+    {%- if minlength is not none %} minlength="{{ minlength }}"{% endif %}
+    {%- if message %} aria-invalid="true"{% endif %}
+    {%- if describedby %} aria-describedby="{{ describedby }}"{% endif %}>{{ field_value }}</textarea>
+</div>
+{%- endmacro %}
+{#
+    select(name, label, options, ...)：下拉選單。
+    - options：可迭代的 (value, label) 配對，由 route 準備或在樣板中以 filter 產生標籤，例如
+        社團：clubs 轉成 [(c.id, c.name), ...]
+        原因類型：reason_types（route 傳入的列舉成員清單）配上 reason_type_label filter
+      樣板不得自行寫死列舉的中文標籤（overview.md 第 5 節）。
+    - 已選值以字串比較（form 的值皆為字串）。
+    - placeholder：第一個空值選項的文字；設為 none 則不輸出。
+#}
+{% macro select(name, label, options, required=false, help=none, id=none, value=none, placeholder='請選擇', short=false) %}
+{% set field_id = id if id else 'field-' ~ name %}
+{% set message = errors[name] if (errors is defined and errors is mapping and name in errors and errors[name]) else '' %}
+{% set describedby = ([(field_id ~ '-help') if help else '', (field_id ~ '-error') if message else ''] | select | join(' ')) %}
+{% if value is not none %}
+{% set selected_value = value | string %}
+{% elif form is defined and form is mapping and name in form and form[name] is not none %}
+{% set selected_value = form[name] | string %}
+{% else %}
+{% set selected_value = '' %}
+{% endif %}
+<div class="field{% if message %} field--error{% endif %}">
+{{ _label_block(field_id, label, required, help, message) -}}
+<select class="field__control{% if short %} field__control--short{% endif %}" id="{{ field_id }}" name="{{ name }}"
+    {%- if required %} required{% endif %}
+    {%- if message %} aria-invalid="true"{% endif %}
+    {%- if describedby %} aria-describedby="{{ describedby }}"{% endif %}>
+    {% if placeholder is not none %}
+    <option value=""{% if not selected_value %} selected{% endif %}>{{ placeholder }}</option>
+    {% endif %}
+    {% for opt_value, opt_label in options %}
+    <option value="{{ opt_value }}"{% if (opt_value | string) == selected_value %} selected{% endif %}>{{ opt_label }}</option>
+    {% endfor %}
+</select>
+</div>
+{%- endmacro %}
+{#
+    submit(label, variant='primary')：送出按鈕。variant：primary / secondary / danger。
+#}
+{% macro submit(label, variant='primary') %}
+<button type="submit" class="button{% if variant in ('secondary', 'danger') %} button--{{ variant }}{% endif %}">{{ label }}</button>
+{%- endmacro %}

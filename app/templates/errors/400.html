@@ -1,0 +1,7 @@
+{#- 400：表單解析失敗或欄位數超過上限（error-handling.md 第 3 節）。路由前的 400 由 middleware 回純文字，不使用本樣板。 -#}
+{%- extends 'errors/_layout.html' -%}
+{%- block title %}請求格式不正確｜{{ super() }}{% endblock -%}
+{%- block error_status %}400 請求錯誤{% endblock -%}
+{%- block error_heading %}無法處理這次送出的資料{% endblock -%}
+{%- block error_message %}請求格式不正確。{% endblock -%}
+{%- block error_hint %}請回到上一頁重新整理後，再重新填寫並送出表單。{% endblock -%}

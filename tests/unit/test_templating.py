@@ -8,7 +8,6 @@ from typing import Any
 import jinja2
 import pytest
 from fastapi import FastAPI
-from starlette.requests import Request
 
 from app.core import templating
 from app.core.templating import (
@@ -21,16 +20,7 @@ from app.core.templating import (
     templates,
 )
 from tests.fixtures.settings import make_settings
-
-
-def make_request(app: FastAPI | None = None, **state: Any) -> Request:
-    scope: dict[str, Any] = {'type': 'http', 'method': 'GET', 'path': '/', 'headers': [], 'query_string': b''}
-    if app is not None:
-        scope['app'] = app
-    request = Request(scope)
-    for key, value in state.items():
-        setattr(request.state, key, value)
-    return request
+from tests.fixtures.templates import make_request
 
 
 @pytest.fixture
@@ -89,11 +79,11 @@ def test_context_login_page_uses_login_token() -> None:
 def test_context_uses_app_settings_timezone(tmp_path: Path) -> None:
     app = FastAPI()
     app.state.settings = make_settings(tmp_path, APP_TIMEZONE='UTC')
-    assert app_context(make_request(app))['app_timezone'] == 'UTC'
+    assert app_context(make_request(app=app))['app_timezone'] == 'UTC'
 
 
 def test_context_app_without_settings_uses_default() -> None:
-    assert app_context(make_request(FastAPI()))['app_timezone'] == 'Asia/Taipei'
+    assert app_context(make_request(app=FastAPI()))['app_timezone'] == 'Asia/Taipei'
 
 
 def test_template_response_renders_anonymous_without_state(tmp_path: Path) -> None:

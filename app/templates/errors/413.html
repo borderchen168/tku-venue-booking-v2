@@ -1,0 +1,7 @@
+{#- 413：chunked 本體讀取時超過上限（error-handling.md 3.1）。宣告 Content-Length 過大的 413 由 middleware 回純文字。 -#}
+{%- extends 'errors/_layout.html' -%}
+{%- block title %}送出的資料過大｜{{ super() }}{% endblock -%}
+{%- block error_status %}413 資料過大{% endblock -%}
+{%- block error_heading %}送出的資料過大{% endblock -%}
+{%- block error_message %}送出的資料過大，系統無法處理。{% endblock -%}
+{%- block error_hint %}請縮短輸入的內容（例如活動說明）後再送出。{% endblock -%}

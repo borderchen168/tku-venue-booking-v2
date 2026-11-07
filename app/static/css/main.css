@@ -1,0 +1,812 @@
+/*
+ * 淡江場地預約系統 — 全站樣式（T-002）
+ *
+ * 規範見 docs/design/style-guide.md。
+ * - 不使用外部 CDN、外部字型、@import 外部資源。
+ * - 不使用 data: URI（CSP img-src 'self'）。
+ * - Mobile-first：預設為手機版面，於 40rem / 64rem 斷點加寬。
+ * - 無障礙基準：WCAG 2.2 AA（涵蓋 T-002 要求的 WCAG 2.1 AA；對比度門檻兩版相同）。
+ *   色彩對比數值見 style-guide 第 2 節。
+ */
+
+/* ===== 1. Design token(設計變數) ===== */
+:root {
+    /* 文字與背景 */
+    --color-text: #1f2937;              /* on #fff 14.68:1 */
+    --color-text-muted: #4b5563;        /* on #fff 7.56:1 */
+    --color-bg: #ffffff;
+    --color-bg-subtle: #f3f4f6;
+    --color-border: #6b7280;            /* 表單邊框，on #fff 4.83:1（非文字 ≥ 3:1） */
+    --color-border-subtle: #d1d5db;     /* 裝飾性分隔線（不承載資訊） */
+
+    /* 品牌與互動 */
+    --color-primary: #1d4ed8;           /* 連結、主要按鈕；on #fff 6.70:1、on #dbeafe 5.49:1、on #fee2e2 5.49:1 */
+    --color-primary-hover: #1e40af;     /* on #fff 8.72:1、on #dbeafe 7.15:1 */
+    --color-header-bg: #1e3a8a;         /* 白字 10.36:1 */
+    --color-on-dark: #ffffff;
+    --color-focus: #1d4ed8;             /* 焦點框（淺色背景），on #fff 6.70:1 */
+    --color-focus-on-dark: #fbbf24;     /* 焦點框（深色頁首），on #1e3a8a 6.20:1 */
+    --color-danger: #b91c1c;            /* 錯誤文字、危險按鈕；on #fff 6.47:1（hover 底色 #7f1d1d 配白字 10.02:1） */
+
+    /* 狀態標籤（文字 / 背景） */
+    --badge-bookable-fg: #14532d;       --badge-bookable-bg: #dcfce7;          /* 8.30:1 */
+    --badge-pending-fg: #78350f;        --badge-pending-bg: #fef3c7;           /* 8.15:1 */
+    --badge-approved-fg: #1e3a8a;       --badge-approved-bg: #dbeafe;          /* 8.49:1 */
+    --badge-closed-fg: #7f1d1d;         --badge-closed-bg: #fee2e2;            /* 8.20:1 */
+    --badge-outside-fg: #374151;        --badge-outside-bg: #e5e7eb;           /* 8.33:1 */
+    --badge-deadline-fg: #4b5563;       --badge-deadline-bg: #f3f4f6;          /* 6.87:1 */
+
+    /* 字型：只使用系統已安裝字型，不下載外部字型 */
+    --font-sans: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
+        "Heiti TC", sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+    /* 字級 */
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.375rem;
+    --text-2xl: 1.75rem;
+
+    /* 間距（4px 基準） */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+
+    --radius: 0.375rem;
+    --container-max: 72rem;
+    --target-min: 2.75rem;              /* 44px 觸控目標 */
+}
+
+/* ===== 2. 基礎 ===== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    color: var(--color-text);
+    background: var(--color-bg);
+}
+
+h1,
+h2,
+h3 {
+    line-height: 1.3;
+    margin: 0 0 var(--space-4);
+}
+
+h1 {
+    font-size: var(--text-2xl);
+}
+
+h2 {
+    font-size: var(--text-xl);
+    margin-top: var(--space-6);
+}
+
+h3 {
+    font-size: var(--text-lg);
+    margin-top: var(--space-5);
+}
+
+p,
+ul,
+ol,
+dl {
+    margin: 0 0 var(--space-4);
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+a:hover {
+    color: var(--color-primary-hover);
+    text-decoration-thickness: 2px;
+}
+
+code {
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+}
+
+/* 焦點：所有可互動元素一律顯示清楚的焦點框（WCAG 2.4.7、1.4.11） */
+:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+}
+
+/* 僅供螢幕閱讀器 */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* 跳到主要內容（WCAG 2.4.1） */
+.skip-link {
+    position: absolute;
+    left: var(--space-2);
+    top: -10rem;
+    z-index: 100;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-bg);
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius);
+}
+
+.skip-link:focus {
+    top: var(--space-2);
+}
+
+.container {
+    width: 100%;
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 var(--space-4);
+}
+
+/* ===== 3. 頁首與導覽列 ===== */
+.site-header {
+    background: var(--color-header-bg);
+    color: var(--color-on-dark);
+}
+
+.site-header :focus-visible {
+    outline-color: var(--color-focus-on-dark);
+}
+
+.site-header__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-5);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+}
+
+.site-brand {
+    color: var(--color-on-dark);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min);
+}
+
+.site-brand:hover {
+    color: var(--color-on-dark);
+    text-decoration: underline;
+}
+
+.site-nav {
+    flex: 1 1 100%;
+    order: 3;
+}
+
+.site-nav__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+}
+
+.site-nav__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min);
+    padding: 0 var(--space-3);
+    color: var(--color-on-dark);
+    text-decoration: none;
+    border-radius: var(--radius);
+    border-bottom: 3px solid transparent;
+}
+
+.site-nav__link:hover {
+    color: var(--color-on-dark);
+    text-decoration: underline;
+}
+
+/* 目前所在頁面：底線而非只靠顏色（WCAG 1.4.1） */
+.site-nav__link[aria-current] {
+    font-weight: 700;
+    border-bottom-color: var(--color-on-dark);
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.site-account {
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+}
+
+.site-account__name {
+    font-weight: 600;
+}
+
+@media (min-width: 64rem) {
+    .site-nav {
+        flex: 1 1 auto;
+        order: 0;
+    }
+}
+
+/* ===== 4. 主內容、頁尾 ===== */
+.site-main {
+    flex: 1 0 auto;
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-7);
+}
+
+.site-main:focus {
+    outline: none;
+}
+
+.site-footer {
+    background: var(--color-bg-subtle);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    padding: var(--space-4) 0;
+    border-top: 1px solid var(--color-border-subtle);
+}
+
+.site-footer p {
+    margin: 0;
+}
+
+.page-header {
+    margin-bottom: var(--space-5);
+}
+
+.page-header p {
+    color: var(--color-text-muted);
+}
+
+.breadcrumb {
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-3);
+}
+
+.breadcrumb ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.breadcrumb li + li::before {
+    content: "/";
+    padding-right: var(--space-1);
+    color: var(--color-text-muted);
+}
+
+/* 卡片與群組 */
+.card {
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+    background: var(--color-bg);
+}
+
+.card-list {
+    list-style: none;
+    margin: 0 0 var(--space-5);
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+}
+
+@media (min-width: 40rem) {
+    .card-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 64rem) {
+    .card-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.card-list > li {
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+}
+
+/* 詳細資料（名稱—值） */
+.detail-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-1) var(--space-4);
+}
+
+.detail-list dt {
+    font-weight: 700;
+}
+
+.detail-list dd {
+    margin: 0 0 var(--space-3);
+}
+
+@media (min-width: 40rem) {
+    .detail-list {
+        grid-template-columns: 10rem 1fr;
+    }
+
+    .detail-list dd {
+        margin-bottom: var(--space-2);
+    }
+}
+
+/* 提醒區塊（例如 R-16「未核准前不得使用場地」） */
+.notice {
+    border-left: 4px solid var(--color-primary);
+    background: var(--badge-approved-bg);
+    color: var(--badge-approved-fg);
+    padding: var(--space-3) var(--space-4);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin-bottom: var(--space-4);
+}
+
+.notice > :last-child {
+    margin-bottom: 0;
+}
+
+/* 一列操作按鈕 */
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin: var(--space-5) 0;
+}
+
+.actions form {
+    margin: 0;
+}
+
+.inline-form {
+    display: inline;
+    margin: 0;
+}
+
+/* ===== 5. 按鈕 ===== */
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--target-min);
+    padding: var(--space-2) var(--space-4);
+    font: inherit;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius);
+    background: var(--color-primary);
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.button:hover {
+    background: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.button--secondary {
+    background: var(--color-bg);
+    color: var(--color-primary);
+}
+
+.button--secondary:hover {
+    background: var(--badge-approved-bg);
+    color: var(--color-primary-hover);
+}
+
+.button--danger {
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+}
+
+.button--danger:hover {
+    background: var(--badge-closed-fg);
+    border-color: var(--badge-closed-fg);
+}
+
+/* 深色頁首上的按鈕（登出、登入） */
+.button--on-dark {
+    background: transparent;
+    border-color: var(--color-on-dark);
+    color: var(--color-on-dark);
+}
+
+.button--on-dark:hover {
+    background: var(--color-on-dark);
+    border-color: var(--color-on-dark);
+    color: var(--color-header-bg);
+}
+
+/* Mobile-first：手機上按鈕撐滿寬度方便點擊，≥ 40rem 時還原為內容寬度 */
+.actions .button {
+    flex: 1 1 100%;
+}
+
+@media (min-width: 40rem) {
+    .actions .button {
+        flex: 0 1 auto;
+    }
+}
+
+/* ===== 6. 表單 ===== */
+.form {
+    max-width: 40rem;
+}
+
+.field {
+    margin-bottom: var(--space-5);
+}
+
+.field__label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: var(--space-1);
+}
+
+.field__required {
+    font-weight: 400;
+    color: var(--color-text-muted);
+    margin-left: var(--space-1);
+}
+
+.field__help {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    margin: 0 0 var(--space-2);
+}
+
+.field__error {
+    color: var(--color-danger);
+    font-weight: 700;
+    margin: 0 0 var(--space-2);
+}
+
+.field__control {
+    display: block;
+    width: 100%;
+    min-height: var(--target-min);
+    padding: var(--space-2) var(--space-3);
+    font: inherit;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius);
+}
+
+.field__control:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+}
+
+textarea.field__control {
+    min-height: 8rem;
+    resize: vertical;
+}
+
+/* 短欄位（日期、時間、人數） */
+.field__control--short {
+    max-width: 14rem;
+}
+
+/* 錯誤欄位：紅框＋左側紅線，不只靠顏色（同時有文字訊息） */
+.field--error {
+    border-left: 4px solid var(--color-danger);
+    padding-left: var(--space-3);
+}
+
+.field--error .field__control {
+    border-color: var(--color-danger);
+}
+
+.field-row {
+    display: grid;
+    gap: 0 var(--space-4);
+}
+
+@media (min-width: 40rem) {
+    .field-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* 表單頂部錯誤摘要（全域錯誤 __all__ 與欄位錯誤連結） */
+.error-summary {
+    border: 3px solid var(--color-danger);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+    margin-bottom: var(--space-5);
+    background: var(--color-bg);
+}
+
+.error-summary__title {
+    font-size: var(--text-lg);
+    color: var(--color-danger);
+    margin: 0 0 var(--space-3);
+}
+
+.error-summary p:last-child,
+.error-summary ul:last-child {
+    margin-bottom: 0;
+}
+
+.error-summary a {
+    color: var(--color-danger);
+    font-weight: 700;
+}
+
+/* ===== 7. Flash 訊息 ===== */
+.flash-list {
+    margin-bottom: var(--space-5);
+}
+
+.flash {
+    border-left: 6px solid currentColor;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.flash p {
+    margin: 0;
+}
+
+.flash--success {
+    color: var(--badge-bookable-fg);
+    background: var(--badge-bookable-bg);
+}
+
+.flash--info {
+    color: var(--badge-approved-fg);
+    background: var(--badge-approved-bg);
+}
+
+.flash--warning {
+    color: var(--badge-pending-fg);
+    background: var(--badge-pending-bg);
+}
+
+.flash--error {
+    color: var(--badge-closed-fg);
+    background: var(--badge-closed-bg);
+}
+
+/* ===== 8. 狀態標籤（class 後綴 = 列舉英文值） ===== */
+.badge {
+    display: inline-block;
+    padding: 0.125rem var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    line-height: 1.5;
+    border: 1px solid currentColor;
+    border-radius: var(--radius);
+    white-space: nowrap;
+}
+
+/* DayStatus.BOOKABLE：可申請 */
+.badge--bookable {
+    color: var(--badge-bookable-fg);
+    background: var(--badge-bookable-bg);
+}
+
+/* BookingStatus.PENDING：審核中 */
+.badge--pending {
+    color: var(--badge-pending-fg);
+    background: var(--badge-pending-bg);
+}
+
+/* BookingStatus.APPROVED：已核准 */
+.badge--approved {
+    color: var(--badge-approved-fg);
+    background: var(--badge-approved-bg);
+}
+
+/* DayStatus.CLOSED：不開放（原因類型） */
+.badge--closed {
+    color: var(--badge-closed-fg);
+    background: var(--badge-closed-bg);
+}
+
+/* DayStatus.OUTSIDE_SEMESTER：不開放（非學期期間） */
+.badge--outside_semester {
+    color: var(--badge-outside-fg);
+    background: var(--badge-outside-bg);
+}
+
+/* DayStatus.DEADLINE_PASSED：已過申請期限（虛線框以便與非學期期間區分） */
+.badge--deadline_passed {
+    color: var(--badge-deadline-fg);
+    background: var(--badge-deadline-bg);
+    border-style: dashed;
+}
+
+/* ===== 9. 表格 ===== */
+
+/* 可水平捲動的容器：樣板需加 role="region"、aria-label、tabindex="0"（鍵盤可捲動） */
+.table-scroll {
+    overflow-x: auto;
+    margin-bottom: var(--space-5);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+}
+
+.data-table caption {
+    text-align: left;
+    font-weight: 700;
+    padding: var(--space-2) var(--space-3);
+}
+
+.data-table th,
+.data-table td {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border-subtle);
+    text-align: left;
+    vertical-align: top;
+}
+
+.data-table thead th {
+    background: var(--color-bg-subtle);
+    white-space: nowrap;
+}
+
+.data-table tbody tr:last-child th,
+.data-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+/* 週檢視表格（T-017）：列 = 30 分鐘時段、欄 = 週一～週日 */
+.week-table {
+    min-width: 48rem;
+}
+
+.week-table th[scope="row"] {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--color-bg-subtle);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 左上角表頭格（「時段」）也固定，水平捲動時不被日期欄蓋過 */
+.week-table thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+.week-table td {
+    min-width: 6rem;
+}
+
+.week-table .slot-booking {
+    display: block;
+    margin-top: var(--space-1);
+}
+
+.week-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+/* ===== 10. 錯誤頁 ===== */
+.error-page {
+    max-width: 40rem;
+    padding: var(--space-6) 0;
+}
+
+.error-page__status {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+}
+
+.error-page__message {
+    font-size: var(--text-lg);
+}
+
+.error-page__code {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+/* ===== 11. 使用者偏好 ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition: none !important;
+        animation: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Windows 高對比（forced colors）：確保標籤、按鈕、焦點框仍可辨識 */
+@media (forced-colors: active) {
+    .badge,
+    .button,
+    .flash,
+    .field__control {
+        border: 1px solid CanvasText;
+    }
+
+    /* 上面的 border 簡寫會把虛線重設為實線，需補回以區分 outside_semester */
+    .badge--deadline_passed {
+        border-style: dashed;
+    }
+
+    .site-nav__link[aria-current] {
+        border-bottom-color: CanvasText;
+    }
+
+    :focus-visible {
+        outline: 3px solid Highlight;
+    }
+}
+
+@media print {
+    .site-header,
+    .site-footer,
+    .skip-link,
+    .actions {
+        display: none;
+    }
+}

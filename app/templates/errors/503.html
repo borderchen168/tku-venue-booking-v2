@@ -1,0 +1,10 @@
+{#-
+    503：ServiceBusyError 的非表單情境，含登入時密碼雜湊名額已滿（US-013 AC13、ADR-005 §6）。
+    回應一律帶 Retry-After（由 handler 設定）。不透露忙碌原因（不得暗示帳號狀態）。
+-#}
+{%- extends 'errors/_layout.html' -%}
+{%- block title %}系統忙碌｜{{ super() }}{% endblock -%}
+{%- block error_status %}503 系統忙碌{% endblock -%}
+{%- block error_heading %}系統忙碌{% endblock -%}
+{%- block error_message %}系統忙碌，請稍後再試。{% endblock -%}
+{%- block error_hint %}請稍候幾秒後回到上一頁重新送出。{% endblock -%}

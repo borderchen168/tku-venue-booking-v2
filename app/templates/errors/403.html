@@ -1,0 +1,21 @@
+{#-
+    403：兩種情境共用（error-handling.md 第 3 節）
+    - PermissionDeniedError（conceal=False）：「您沒有權限執行此操作」。
+    - CSRFError（含登出時無有效 Session，reason=no_session）：「表單已失效，請重新整理頁面後再試」。
+      handler 需傳入 error_kind='csrf' 以切換訊息；未傳入或其他值一律顯示權限訊息。
+    訊息文字寫死於此，不輸出例外的 message 或 reason（避免透露內部細節）。
+-#}
+{%- extends 'errors/_layout.html' -%}
+{%- block title %}
+    {%- if error_kind is defined and error_kind == 'csrf' %}表單已失效{% else %}沒有權限{% endif %}｜{{ super() }}
+{%- endblock -%}
+{%- block error_status %}403 無法執行{% endblock -%}
+{%- block error_heading %}
+    {%- if error_kind is defined and error_kind == 'csrf' %}表單已失效{% else %}沒有權限{% endif %}
+{%- endblock -%}
+{%- block error_message %}
+    {%- if error_kind is defined and error_kind == 'csrf' %}表單已失效，請重新整理頁面後再試。{% else %}您沒有權限執行此操作。{% endif %}
+{%- endblock -%}
+{%- block error_hint %}
+    {%- if error_kind is defined and error_kind == 'csrf' %}這次送出的資料沒有被處理。若您已登出或登入已逾時，請重新登入後再操作。{% endif %}
+{%- endblock -%}

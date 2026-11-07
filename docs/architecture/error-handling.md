@@ -2,14 +2,15 @@
 
 - 對應 Task：T-003（例外類別 `app/core/exceptions.py`、`to_field_errors`、context processor）、**T-023**（middleware、`app/core/forms.py`、`app/core/error_handlers.py`、錯誤頁 fallback、`ALL_ROUTERS` 覆蓋測試）、T-002（錯誤頁樣板）、各 web Task（表單錯誤重新渲染）
 - 依據：AGENTS.md 2.3「錯誤處理」（正式環境不回傳 stack trace 或內部錯誤細節）
-- 最後更新：2026-11-06（第 4 版：`ALL_ROUTERS` 覆蓋測試、handler 不讀本體、`BodyTooLargeAfterResponseStart`、503 Retry-After、重複 Content-Type 400）
+- 最後更新：2026-11-07（第 5 版：錯誤頁 context——`request_id`、`error_kind`、`skip_flash`（3.4）；`request_id` 只由伺服器產生；`APP_DEBUG` 不得傳給 `FastAPI(debug=)`）
+- 前一版：2026-11-06（第 4 版：`ALL_ROUTERS` 覆蓋測試、handler 不讀本體、`BodyTooLargeAfterResponseStart`、503 Retry-After、重複 Content-Type 400）
 
 ## 1. 原則
 
 1. **service 只拋 domain 例外，不知道 HTTP**；router 或全域 exception handler 負責轉換。
 2. **表單類錯誤**（欄位驗證、商業規則、重疊）由 route 捕捉並**重新渲染表單**，保留已填資料；**非表單錯誤**（權限、不存在、CSRF、未預期例外）由全域 handler 渲染統一錯誤頁。
 3. 錯誤頁**不顯示**：stack trace、例外類別名稱、SQL、檔案路徑、設定值、套件版本、使用者輸入值。只顯示友善訊息、`request_id`（「錯誤代碼：a1b2c3d4」）與「回首頁」連結。
-4. `APP_DEBUG=true` 只允許在非 production 使用（`Settings` 驗證強制）；即使 debug，也不得在頁面顯示請求本體或表單值。
+4. `APP_DEBUG=true` 只允許在非 production 使用（`Settings` 驗證強制），**只用於提高日誌詳細度**，**不得**傳給 `FastAPI(debug=...)`（否則 Starlette 會略過 T-023 的 500 handler、直接回 traceback 頁）；錯誤頁在任何環境都只顯示友善訊息，也不得在頁面顯示請求本體或表單值（overview.md 第 4 節）。
 5. 所有錯誤回應帶安全標頭與 `Cache-Control: no-store`（overview.md 第 8 節）。
 6. Sprint 1 沒有 JSON API；若未來新增 `/api/*`，相同例外改以 JSON 回應（handler 依路徑前綴分流）。
 
@@ -61,8 +62,8 @@ class LoginRequired(Exception):                       # → 303 /login
 | 400 | 登入失敗（所有原因相同） | 重新渲染 `auth/login.html` | `auth.login.failure`（security） |
 | 400 | 表單解析失敗或欄位數超過 `FORM_MAX_FIELDS`（`LimitedFormRequest` 中 Starlette 拋 `HTTPException(400)`） | `errors/400.html`「請求格式不正確」 | `app` WARNING（不記錄本體） |
 | 400 | `Host` 不在 `ALLOWED_HOSTS`（`TrustedHostMiddleware`）；`Content-Length` 非整數或為負數（`BodySizeLimitMiddleware`）；非安全方法帶多個 `Content-Type` 標頭（`FormContentTypeMiddleware`） | **middleware 層純文字**（見 3.2） | `app` WARNING |
-| 403 | `PermissionDeniedError`（`conceal=False`） | `errors/403.html`「您沒有權限執行此操作」 | `access.denied`（handler） |
-| 403 | `CSRFError` | `errors/403.html`，訊息「表單已失效，請重新整理頁面後再試」 | `csrf.failed`（handler） |
+| 403 | `PermissionDeniedError`（`conceal=False`） | `errors/403.html`（`error_kind=None`）「您沒有權限執行此操作」 | `access.denied`（handler） |
+| 403 | `CSRFError`（所有 `reason`，含 `no_session`） | `errors/403.html`（`error_kind='csrf'`）「表單已失效，請重新整理頁面後再試」；`reason` 只進日誌，不影響畫面 | `csrf.failed`（handler） |
 | 404 | `NotFoundError`、`PermissionDeniedError(conceal=True)`、Starlette 404（含 `/api/*`、`/docs`） | `errors/404.html`「找不到您要的頁面」 | conceal 時 `access.denied` |
 | 404 | Starlette **405**（Method Not Allowed） | **狀態碼改為 404**，使用 `errors/404.html`（不透露路由存在，Code Review #12） | – |
 | 409 | `BookingConflictError` | 重新渲染表單＋頂部訊息 | – |
@@ -112,6 +113,20 @@ Starlette 把 `Exception`（500）handler 交給最外層的 `ServerErrorMiddlew
 
 - 錯誤頁樣板若本身渲染失敗（例如 T-002 尚未合併），handler 退回純文字 fallback（`text/plain; charset=utf-8`，只有狀態碼與一句中文）。
 - 500 的日誌只記錄 traceback，不得使用會輸出區域變數的 traceback 格式（例如 `rich` 的 `show_locals`），避免密碼等區域變數進入日誌。
+
+### 3.4 錯誤頁樣板 context（T-023，routes.md 3.1～3.3）
+
+每個渲染錯誤頁樣板的 handler（400、403、404、413〔chunked〕、422、500、503 頁）一律：
+
+1. 先設 `request.state.skip_flash = True`，使 context processor 不呼叫 `pop_flashes()`、`messages` 為 `[]`（不存取 DB，也不消耗使用者的 flash）。
+2. context 只傳：
+   - `request_id: str | None` = `getattr(request.state, 'request_id', None)`（樣板 fallback 為 `request.state.request_id`；兩者皆無則不顯示錯誤代碼）。
+   - `error_kind: Literal['csrf'] | None`：僅 `csrf_error_handler` 傳 `'csrf'`；其他 handler 不傳或傳 `None`。
+3. **不得**在 context 傳入保留名稱 `current_user`、`csrf_token`、`messages`、`app_timezone`（會被 context processor 覆蓋，routes.md 3.1），也不得傳入例外的 `message`、`reason`、路徑或使用者輸入。
+
+`request_id` 來源：`RequestIdMiddleware` 一律以伺服器端亂數（`secrets.token_hex` 或 `uuid.uuid4().hex`）產生，寫入 contextvar 與 `scope['state']['request_id']`；**不採用**用戶端的 `X-Request-ID` 等請求標頭（security-logging.md 第 1 節）。
+
+測試（T-023）：已登入且有 flash 時觸發 404 / 500 → 錯誤頁不顯示 flash 且 flash 仍保留；`pop_flashes` 拋例外時錯誤頁仍可渲染；CSRF 失敗頁含「表單已失效」、權限拒絕頁含「您沒有權限執行此操作」；帶 `X-Request-ID` 標頭時頁面顯示的錯誤代碼不是該值。
 
 ## 4. Handler 註冊（T-023 `app/core/error_handlers.py`）
 

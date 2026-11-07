@@ -1,0 +1,47 @@
+{#-
+    errors/_layout.html — 錯誤頁共用版面（T-002）
+
+    規則（error-handling.md 第 1 節原則 3）：
+    - 只顯示友善訊息、錯誤代碼（request_id）與「回首頁」連結。
+    - 不顯示 stack trace、例外類別名稱、SQL、檔案路徑、設定值、套件版本、使用者輸入值。
+      因此訊息文字一律寫死在各錯誤頁樣板，不輸出 handler 傳入的任意字串。
+
+    子樣板覆寫的區塊：
+    - title：同 base.html。
+    - error_status：狀態碼與簡短分類（例如「404 找不到頁面」）。
+    - error_heading：<h1>。
+    - error_message：主要訊息（一句）。
+    - error_hint：建議下一步（可省略）。
+
+    錯誤代碼來源（依序）：handler 傳入的 request_id → request.state.request_id；都沒有時不顯示。
+-#}
+{%- extends 'base.html' -%}
+
+{# 空白控制：環境開啟 trim_blocks 與 lstrip_blocks；本區塊內獨佔一行的控制標籤不加 '-'，整行會自動消失，每個 HTML 標籤輸出為獨立一行（style-guide 7.6） #}
+{% block content %}
+{% if request_id is defined and request_id %}
+{% set error_code = request_id %}
+{% elif request is defined and request is not none and request.state.request_id is defined and request.state.request_id %}
+{% set error_code = request.state.request_id %}
+{% else %}
+{% set error_code = '' %}
+{% endif %}
+<div class="error-page">
+    <p class="error-page__status">{% block error_status %}{% endblock %}</p>
+    <h1>{% block error_heading %}{% endblock %}</h1>
+    <p class="error-page__message">{% block error_message %}{% endblock %}</p>
+    {% set hint = self.error_hint() | trim %}
+    {% if hint %}
+    <p>{{ hint }}</p>
+    {% endif %}
+    {% if error_code %}
+    <p class="error-page__code">錯誤代碼：<code>{{ error_code }}</code>（聯絡承辦人時請提供此代碼）</p>
+    {% endif %}
+    <div class="actions">
+        <a class="button" href="/">回首頁</a>
+    </div>
+</div>
+{% endblock %}
+
+{#- error_hint 只供 self.error_hint() 讀取；必須在 content 區塊之外定義且不直接輸出 -#}
+{%- block error_hint %}{% endblock -%}

@@ -30,6 +30,7 @@ created: 2026-11-06
 - `ALL_ROUTERS` / `EXPECTED_POST_PATHS`、`RETRY_AFTER_SECONDS` 由 T-023 建立；本 Task 經 T-010 → T-008 → T-007 → T-023 間接相依，不另列 depends_on。
 - 「申請此場地」入口已由 T-017 依 `DayAvailability.status == bookable`（`bookable` property）顯示，本 Task 只需處理預填；預填不代表規則通過，送出時仍由 T-019 完整檢查。
 - router 一律 `APIRouter(route_class=LimitedFormRoute)`（T-023，ADR-002 2.1）；表單為 urlencoded，不得使用 `enctype="multipart/form-data"`（routes.md 第 1 節）。
+- （2026-11-07 routes.md 第 4 版同步） **Code Review 檢查項**：route 傳給 `TemplateResponse` 的 context 不得含保留名稱 `request`、`current_user`、`csrf_token`、`messages`、`app_timezone`（會被 context processor 覆蓋，routes.md 3.1）；需要改變其值時改設 `request.state`。
 
 ## 審查紀錄
 | 日期 | 角色 | 結論 | 備註 |

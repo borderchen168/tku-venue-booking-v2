@@ -1,0 +1,10 @@
+{#-
+    422：RequestValidationError（例如 /venues/abc、/venues/0）（error-handling.md 第 3 節）。
+    不列出欄位細節與輸入值。表單驗證失敗的 422 由各頁重新渲染表單，不使用本樣板。
+-#}
+{%- extends 'errors/_layout.html' -%}
+{%- block title %}請求內容格式不正確｜{{ super() }}{% endblock -%}
+{%- block error_status %}422 格式錯誤{% endblock -%}
+{%- block error_heading %}網址或參數格式不正確{% endblock -%}
+{%- block error_message %}請求內容格式不正確。{% endblock -%}
+{%- block error_hint %}請確認網址是否正確，或從首頁重新進入。{% endblock -%}

@@ -2,7 +2,8 @@
 
 - 文件負責：System Analyst(系統分析師)
 - 對應 Task：T-001；適用 Sprint 1 選入的 Story：US-013、US-001、US-017、US-002、US-004
-- 最後更新：2026-11-06（第 3 版：依第 2 輪 Code Review / Security Review 修訂）
+- 最後更新：2026-11-07（第 4 版：`APP_DEBUG` 用途、`DATABASE_URL` / Session 秒數 / `SESSION_COOKIE_NAME` 驗證（第 4 節）；context processor 保留名稱與 flash 分工、`day_status_label` 由 T-017 註冊（第 3、5 節））
+- 前一版：2026-11-06（第 3 版：依第 2 輪 Code Review / Security Review 修訂）
 
 相關文件：
 
@@ -155,7 +156,7 @@ sequenceDiagram
 | 型別 / 模組 | 定義位置 | 負責 Task | 使用者 |
 |---|---|---|---|
 | `Settings`、`get_settings` | `app/core/config.py` | T-003 | 全部 |
-| `security_log`、`SecurityEvent` | `app/core/logging.py` | T-003 | T-007～T-019 |
+| `security_log`、`SecurityEvent`、`configure_logging`、`bind_request_context` / `reset_request_context`（`RequestContextTokens`）、`bind_cli_context` | `app/core/logging.py` | T-003 | T-007～T-019；`bind_request_context` / `reset_request_context` 由 T-023 `RequestIdMiddleware` 呼叫；`configure_logging` → `bind_cli_context` 由 T-009 CLI 進入點依序呼叫（security-logging.md 第 1 節） |
 | 全部例外（含 `LoginRequired`、`CSRFError`） | `app/core/exceptions.py` | T-003 | 全部 |
 | `Clock`、`SystemClock`、`get_clock` | `app/core/clock.py` | T-003 | T-007、T-008、T-016、T-019、T-020 |
 | `local_to_utc`、`utc_to_local`、`local_day_bounds_utc` | `app/core/timeutils.py` | **T-003** | T-013、T-016、T-019 |
@@ -164,7 +165,8 @@ sequenceDiagram
 | **`ALL_ROUTERS`**（全部 web router 的唯一清單；`create_app` 只從此清單 `include_router`） | `app/routers/__init__.py` | **T-023**（建立空清單與掛載迴圈；T-010、T-012、T-015、T-017、T-020 加入各自 router） | `app/main.py`、覆蓋測試 |
 | route 覆蓋測試 helper `iter_api_routes` 與 `tests/integration/test_route_coverage.py`（`EXPECTED_POST_PATHS`） | `tests/` | **T-023**（T-010 / T-015 / T-020 擴充清單，T-021 驗收） | ADR-002 2.1 |
 | `register_exception_handlers` 與各 handler | `app/core/error_handlers.py` | **T-023** | – |
-| context processor（以 `getattr(request.state, ..., None)` 取 `current_user` / `session`，缺少時視為未登入） | `app/core/templating.py` | T-003（T-007、T-008 填值） | 全部樣板、500 頁 |
+| context processor（以 `getattr(request.state, ..., None)` 取 `current_user` / `session`，缺少時視為未登入；保留名稱 `current_user`、`csrf_token`、`messages`、`app_timezone`，routes.md 3.1） | `app/core/templating.py` | T-003（`messages` 先固定 `[]`）；**T-007** 接上 `pop_flashes` 並實作 `request.state.skip_flash` 檢查；T-008 填 `current_user` | 全部樣板、500 頁 |
+| `day_status_label` filter（`DayStatus` → 中文標籤，routes.md 3.4） | `app/core/templating.py` | **T-017**（`DayStatus` 由 T-016 定義，不屬 T-003） | `venues/availability.html` |
 | `engine`、`session_factory`、`get_session`、`immediate_transaction`、`translate_busy_error` | `app/core/db.py` | T-004 | 全部寫入者 |
 | `Base`、`NAMING_CONVENTION`、**`UTCDateTime`**、`TimestampMixin` | `app/models/base.py` | **T-005** | 全部 model |
 | `UserRole`、`VenueCategory`、`ClosedReasonType`、`BookingStatus`、`OCCUPYING_STATUSES` | `app/models/enums.py` | T-005 | 全部 |
@@ -188,7 +190,7 @@ sequenceDiagram
 | 路徑 | 內容 | Task |
 |---|---|---|
 | `app/main.py` | `create_app(settings: Settings | None = None) -> FastAPI`、`/healthz`、static 掛載：T-003；第一步設定 `app.router.route_class = LimitedFormRoute`、middleware 掛載（順序見第 2 節）、exception handler 註冊、從 `ALL_ROUTERS` 掛載 router：**T-023**；`ServerSessionMiddleware` 與 `csrf_protect` 全域相依：T-007 | T-003 / T-023 / T-007 |
-| `app/core/templating.py` | `templates: Jinja2Templates`（autoescape 開啟）、context processor、列舉中文標籤 filter | T-003（T-007、T-008 填入 context） |
+| `app/core/templating.py` | `templates: Jinja2Templates`（autoescape 開啟）、context processor、列舉中文標籤 filter | T-003（T-007、T-008 填入 context；T-017 加 `day_status_label`） |
 | `app/core/data/common_passwords.txt` | 常見密碼清單（UTF-8，每行一筆，小寫比對；建議取 SecLists 10k 清單並保留授權說明） | T-008 |
 | `app/models/user.py`、`club.py`、`venue.py`、`closed_period.py`、`booking.py`、`auth.py` | 見 erd.md | T-005 |
 | `migrations/env.py` | `render_item` 將 `UTCDateTime` 輸出為 `sa.DateTime()`（erd.md 第 2 節） | T-005 |
@@ -221,26 +223,26 @@ sequenceDiagram
 | 變數 | 型別 / 預設 | 驗證與說明 |
 |---|---|---|
 | `APP_ENV` | `Literal['development','test','production']`，預設 `development` | 白名單 |
-| `APP_DEBUG` | `bool`，預設 `false` | production 為 true → 啟動失敗 |
+| `APP_DEBUG` | `bool`，預設 `false` | production 為 true → 啟動失敗。**唯一用途：提高日誌詳細度**（例如 `app` logger 降為 DEBUG）。**不得**傳給 `FastAPI(debug=...)` 或 Starlette（debug 模式會略過 T-023 的 500 handler、直接回 traceback 頁）；錯誤頁、安全標頭與 CSP 在任何環境都相同（error-handling.md 第 1 節原則 4） |
 | `SECRET_KEY` | `SecretStr` | 用途：經 `derive_key('login-csrf')` 衍生登入前 CSRF 金鑰（ADR-002 4.4）。production：長度 < 32 或屬於 `FORBIDDEN_SECRET_KEYS`（含 `change-me` 與 `.env.example` 範例值）→ 啟動失敗。更換影響見 ADR-002 |
-| `DATABASE_URL` | `str`，預設 `sqlite:///./data/app.db` | 只接受 `sqlite:///` 開頭；相對路徑以專案根目錄解析（`pathlib.Path`） |
+| `DATABASE_URL` | `str`，預設 `sqlite:///./data/app.db` | 只接受 `sqlite:///` 開頭；相對路徑以專案根目錄解析（`pathlib.Path`）。拒絕 `:memory:`（含 `sqlite://` 無路徑）、空路徑、帶查詢參數（`?`）的 URL → 啟動失敗（記憶體 DB 各連線不共用、查詢參數可能改變 SQLite 行為；測試以暫存檔案 DB 取代） |
 | **`DATABASE_BUSY_TIMEOUT_MS`** | `int`，預設 `5000`，範圍 100～60000 | SQLite busy handler 等待寫鎖上限（ADR-003） |
 | `APP_TIMEZONE` | `str`，預設 `Asia/Taipei` | 必須能被 `ZoneInfo` 載入；顯示**與**規則判斷共用（ADR-004） |
 | **`ALLOWED_HOSTS`** | `list[str]`（逗號分隔），預設 `localhost,127.0.0.1` | `TrustedHostMiddleware`；production 含 `*` 或為空 → 啟動失敗；test fixture 設為 `testserver` |
 | **`MAX_REQUEST_BODY_BYTES`** | `int`，預設 `65536`，範圍 1024～1048576 | 請求本體上限，超過 413（error-handling.md） |
-| `SESSION_COOKIE_NAME` | `str`，預設 `tku_session` | production 必須以 `__Host-` 開頭，否則啟動失敗；以 `__Host-` 開頭時（不論環境）`SESSION_COOKIE_SECURE` 必須為 true。登入前 nonce Cookie 名稱為 `{SESSION_COOKIE_NAME}_login`（自動沿用前綴） |
+| `SESSION_COOKIE_NAME` | `str`，預設 `tku_session` | 必須符合 `^[A-Za-z0-9_-]+$` 且長度 ≤ 64（避免 Cookie 名稱含分隔字元或標頭注入；`__Host-tku_session` 符合）。production 必須以 `__Host-` 開頭，否則啟動失敗；以 `__Host-` 開頭時（不論環境）`SESSION_COOKIE_SECURE` 必須為 true。登入前 nonce Cookie 名稱為 `{SESSION_COOKIE_NAME}_login`（自動沿用前綴） |
 | `SESSION_COOKIE_SECURE` | `bool`，預設 `false` | production 必須為 `true`，否則啟動失敗 |
-| `SESSION_MAX_AGE_SECONDS` | `int`，預設 `1800` | 閒置逾時（US-013 AC6） |
-| **`SESSION_ABSOLUTE_MAX_AGE_SECONDS`** | `int`，預設 `28800` | 絕對逾時（ASVS L2，ADR-001）；須 ≥ `SESSION_MAX_AGE_SECONDS` |
+| `SESSION_MAX_AGE_SECONDS` | `int`，預設 `1800`，須 > 0 | 閒置逾時（US-013 AC6） |
+| **`SESSION_ABSOLUTE_MAX_AGE_SECONDS`** | `int`，預設 `28800`，須 > 0 | 絕對逾時（ASVS L2，ADR-001）；須 ≥ `SESSION_MAX_AGE_SECONDS` |
 | **`LOGIN_CSRF_MAX_AGE_SECONDS`** | `int`，預設 `3600`，範圍 300～86400 | 登入前 CSRF Token 有效期（ADR-002） |
 | `LOGIN_MAX_ATTEMPTS` | `int`，預設 `5`，範圍 1～100 | ADR-005 |
-| `LOGIN_LOCKOUT_SECONDS` | `int`，預設 `900` | 嘗試計數時間窗**與**鎖定時間（ADR-005） |
+| `LOGIN_LOCKOUT_SECONDS` | `int`，預設 `900`，須 > 0 | 嘗試計數時間窗**與**鎖定時間（ADR-005） |
 | **`PASSWORD_HASH_CONCURRENCY`** | `int`，預設 `4`，範圍 1～32 | 每個 worker 同時進行的 argon2 運算上限；名額已滿的登入立即 503，不排隊（ADR-005 第 6 節） |
 | `LOG_LEVEL` | `Literal['DEBUG','INFO','WARNING','ERROR']` | |
 
 ## 5. 跨模組約定
 
-- **列舉**一律定義在 `app/models/enums.py`（`StrEnum`），資料庫存英文值，中文標籤集中在 `app/core/templating.py` 的 filter（`status_label`、`reason_type_label`、`category_label`），樣板不得自行寫死對照。
+- **列舉**一律定義在 `app/models/enums.py`（`StrEnum`），資料庫存英文值，中文標籤集中在 `app/core/templating.py` 的 filter（`status_label`、`reason_type_label`、`category_label`；`DayStatus` 用 `day_status_label`，由 T-017 註冊），樣板不得自行寫死對照。Sprint 1 不顯示角色名稱，不提供 `role_label`（routes.md 3.5）。
 - **佔用狀態**單一來源：`OCCUPYING_STATUSES: Final = frozenset({BookingStatus.PENDING, BookingStatus.APPROVED})`。
 - **R-01 開放時段**單一來源：`app/core/constants.py`。**R-13 工作天數**：`app/services/workday.py` 的 `REQUIRED_WORKDAYS`。**學期區間**：`app/services/semester.py` 的 `TERM_RULES`（ADR-006）。
 - **時間**：DB 只存 timezone-aware UTC；`date` 欄位代表 `APP_TIMEZONE` 的日曆日（ADR-004）。

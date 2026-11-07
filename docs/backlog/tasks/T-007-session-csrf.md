@@ -41,6 +41,8 @@ created: 2026-11-06
   - 失敗拋 `CSRFError(reason=...)`：`missing` / `mismatch` / `no_nonce`（未登入且無或格式不合的 nonce）/ `expired` / `bad_format`；`no_session` 由 `destroy_session` 使用（handler 由 T-023 建立，記錄 `csrf.failed`）。
 - [ ] 清理：`SessionStore.delete_expired` 與模組常數 `SESSION_CLEANUP_MIN_INTERVAL_SECONDS = 300`（ADR-001 第 5 節；**呼叫點為 T-008 `AuthService.maybe_cleanup(now)`，在 `reserve_attempt` 之後觸發**，`create_session_for_user` 本身不清理）。
 - [ ] context processor 注入 `csrf_token`（已登入取 Session、登入頁取 `request.state.login_csrf_token`）與 `messages`（routes.md 第 3 節；沿用 T-003 的 `getattr` 取值方式）。
+  - （2026-11-07 routes.md 第 4 版同步） 把 T-003 固定為 `[]` 的 `messages` 接上 `pop_flashes(request)`；**`getattr(request.state, 'skip_flash', False)` 為真時直接回傳 `[]`，不呼叫 `pop_flashes()`、不存取 DB**（routes.md 3.1、3.3；旗標由 T-023 錯誤頁 handler 設定）。
+  - （2026-11-07 routes.md 第 4 版同步） context processor 仍只回傳保留名稱四個鍵（`current_user`、`csrf_token`、`messages`、`app_timezone`），不得新增其他鍵（routes.md 3.1）。
 - [ ] 測試（含負面測試，ADR-001 第 7 節、ADR-002 全文）：
   - Cookie 屬性；production 設定下 Cookie 名稱為 `__Host-` 前綴、帶 `Secure`，nonce Cookie 名稱同樣沿用前綴且為 `SameSite=Lax`。
   - **`app/core/cookies.py` 設定與刪除兩種情境都要斷言**（ADR-002 4.5 測試要求），Session Cookie 與 nonce Cookie 各測一次：
@@ -51,6 +53,7 @@ created: 2026-11-06
   - 閒置 1801 秒必失效、1700 秒必有效；絕對逾時；停用使用者下一個請求即失效；`last_seen_at` 60 秒內不重寫。
   - **無 flash 的已登入頁面渲染不產生寫入交易**（以 `before_cursor_execute` 斷言沒有 `BEGIN IMMEDIATE`）；`/static/*` 與 `/healthz` 不查 `user_sessions`。
   - 匿名請求（含 `GET /login` 發 Token）後 `user_sessions` 筆數為 0。
+  - （2026-11-07 routes.md 第 4 版同步） `skip_flash`：已登入且 Session 有 flash 時，以設定 `request.state.skip_flash = True` 的測試 route 渲染樣板 → `messages` 為 `[]`、未呼叫 `pop_flashes`（monkeypatch 計數或使其拋例外）、無任何 DB 查詢，且 flash 仍保留於 `user_sessions.data`；未設旗標的下一個正常頁面才顯示並清除該 flash。
   - 登入前 Token：缺 nonce（`no_nonce`）、格式錯（`bad_format`）、竄改 mac 或換 nonce（`mismatch`）、過期與未來時間超過 60 秒（`expired`，以 `FixedClock` 推進時間）皆 403；正確組合通過；**連續兩次發 Token 時 nonce 不變且每次都有 `Set-Cookie`**。
   - 已登入：缺少 / 錯誤 Token 403、正確通過；以 `X-CSRF-Token` 等標頭送 Token 仍視為缺少（403）。
   - **以帶 `Form()` 參數的測試 route**（`LimitedFormRoute`）驗證：`csrf_protect` 讀取表單後，endpoint 的 `Form()` 參數取得相同值；送 51 個欄位（帶正確 Token）→ 400；`multipart/form-data` → 415（ADR-002 2.1 第 3 點）。

@@ -29,6 +29,7 @@ created: 2026-11-06
 - router 一律 `APIRouter(route_class=LimitedFormRoute)`（T-023，ADR-002 2.1）；404 / 422 錯誤頁由 T-023 的全域 handler 呈現。
 - 新增相依 T-023（route class、`ALL_ROUTERS` 與錯誤 handler）；T-023 於波次 2 合併，不影響排程。
 - `GET /venues` 必須為 sync route（`def`），T-008 / T-021 的「登入飽和時 `GET /venues` 仍可回應」測試以此為準（ADR-005 第 7 節）。
+- （2026-11-07 routes.md 第 4 版同步） **Code Review 檢查項**：route 傳給 `TemplateResponse` 的 context 不得含保留名稱 `request`、`current_user`、`csrf_token`、`messages`、`app_timezone`（會被 context processor 覆蓋，routes.md 3.1）；需要改變其值時改設 `request.state`。
 
 ## 審查紀錄
 | 日期 | 角色 | 結論 | 備註 |

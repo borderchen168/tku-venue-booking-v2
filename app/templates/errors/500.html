@@ -1,0 +1,13 @@
+{#-
+    500：未捕捉的例外（error-handling.md 第 3 節、3.2）。
+    可能在 Session 載入之前發生：current_user / csrf_token / messages 可能未定義或為 None，
+    base.html 與 errors/_layout.html 均已防護，導覽列顯示訪客版。
+    不得顯示 stack trace、例外類別名稱或任何技術細節。
+-#}
+{%- extends 'errors/_layout.html' -%}
+{%- block title %}系統發生錯誤｜{{ super() }}{% endblock -%}
+{%- block error_status %}500 系統錯誤{% endblock -%}
+{%- block error_heading %}系統發生錯誤{% endblock -%}
+{%- block error_message %}系統發生錯誤，請稍後再試。{% endblock -%}
+{#- 錯誤代碼不一定存在，提示文字不得依賴它（有代碼時 _layout 另行顯示「聯絡承辦人時請提供此代碼」） -#}
+{%- block error_hint %}若問題持續發生，請聯絡課外活動輔導組承辦人。{% endblock -%}

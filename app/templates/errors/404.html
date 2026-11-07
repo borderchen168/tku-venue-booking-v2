@@ -1,0 +1,10 @@
+{#-
+    404：NotFoundError、PermissionDeniedError(conceal=True)、Starlette 404 與 405（error-handling.md 第 3 節）。
+    「不存在」與「存在但無權存取」必須顯示完全相同的內容（資源隱藏規則）。
+-#}
+{%- extends 'errors/_layout.html' -%}
+{%- block title %}找不到頁面｜{{ super() }}{% endblock -%}
+{%- block error_status %}404 找不到頁面{% endblock -%}
+{%- block error_heading %}找不到頁面{% endblock -%}
+{%- block error_message %}找不到您要的頁面。{% endblock -%}
+{%- block error_hint %}網址可能有誤，或該頁面已不存在。您可以從首頁或場地清單重新開始。{% endblock -%}

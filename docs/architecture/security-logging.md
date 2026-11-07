@@ -2,7 +2,7 @@
 
 - 對應 Task：T-003（`security_log` helper、`SecurityEvent` 列舉與欄位白名單）、T-023（`access.denied`、`csrf.failed` 由 handler 記錄）、T-007、T-008、T-009、T-013、T-019（各自記錄事件）、T-021（以 `caplog` 驗證不含敏感資料）
 - 依據：AGENTS.md 2.3「日誌」、OWASP Logging Cheat Sheet、ASVS V16（Security Logging）
-- 最後更新：2026-11-06
+- 最後更新：2026-11-07（`request_id` 只由伺服器產生，不採用請求標頭；第 1 節補上 `bind_request_context` / `reset_request_context` / `bind_cli_context` 與 CLI 須先呼叫 `configure_logging`）
 
 ## 1. 格式與輸出
 
@@ -17,6 +17,23 @@
 
   `SecurityEvent` 為 `StrEnum`，值即下表事件名稱。
 - **自動附加欄位**（由 `RequestIdMiddleware` 以 `contextvars` 設定，service 不必傳遞 Request）：`ts`（UTC ISO 8601）、`request_id`、`client_ip`、`method`、`path`（**不含查詢字串**，避免 `next` 等參數夾帶資料）。CLI 執行時 `request_id` 為 `cli-<uuid>`、`client_ip` 為 `null`、`actor` 為 `cli`。
+- **contextvars 設定 helper**（`app/core/logging.py`，T-003 已實作；以下為正式簽章）：
+
+  ```python
+  @dataclass(frozen=True, slots=True)
+  class RequestContextTokens:            # 還原憑證：request_id、client_ip、method、path 四個 Token[str | None]
+      ...
+
+  def bind_request_context(*, request_id: str, client_ip: str | None, method: str, path: str) -> RequestContextTokens: ...
+  def reset_request_context(tokens: RequestContextTokens) -> None: ...
+  def bind_cli_context() -> str: ...    # request_id = 'cli-<uuid4>'，其餘三欄設為 None；回傳 request_id
+  def configure_logging(settings: Settings) -> None: ...   # 設定 app / security logger（stderr、LOG_LEVEL）；可重複呼叫
+  ```
+
+  - **HTTP（T-023 `RequestIdMiddleware`）**：每個請求先產生伺服器端 `request_id`，呼叫 `bind_request_context(...)`（`path` 傳 **不含查詢字串**的路徑），並在 `try / finally` 中以 `reset_request_context(tokens)` 還原。同一個 `request_id` 另外由 middleware 自行寫入 `scope['state']['request_id']`（`bind_request_context` 不處理 `scope`，routes.md 3.2）。
+  - **CLI（T-009 進入點）**：必須**先**呼叫 `configure_logging(get_settings())`，**再**呼叫 `bind_cli_context()`，之後才可執行任何會呼叫 `security_log` 的動作。未先呼叫 `configure_logging` 時，`security` logger 沒有 handler，INFO 等級的事件（例如 `account.created`）會遺失。`actor='cli'` 仍由呼叫端以欄位傳入。
+  - 未設定 contextvars 時（例如單元測試直接呼叫 service），四個自動欄位輸出為 `null`。
+- **`request_id` 一律由伺服器隨機產生**（`secrets.token_hex` 或 `uuid.uuid4().hex`，小寫 hex），**不採用**用戶端送來的 `X-Request-ID`、`X-Correlation-ID` 等任何請求標頭，避免攻擊者控制日誌關聯鍵或偽造日誌內容（CWE-117）。同一值也寫入 `scope['state']['request_id']`，供錯誤頁顯示錯誤代碼（routes.md 3.2、error-handling.md 3.4）。
 - 日誌字串值一律以 JSON 序列化輸出，換行與控制字元會被跳脫（防 Log Injection，CWE-117）；`username` 另截斷至 50 字。
 
 ## 2. 事件清單

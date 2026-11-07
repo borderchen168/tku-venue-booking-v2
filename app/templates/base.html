@@ -1,0 +1,104 @@
+{#-
+    base.html — 全站共用版面（T-002，規範見 docs/design/style-guide.md）
+
+    子樣板可覆寫的區塊：
+    - title：<title> 內容，一律寫成 {% block title %}頁面名稱｜{{ super() }}{% endblock %}
+      （輸出「頁面名稱｜淡江場地預約系統」；WCAG 2.4.2 每頁標題不同）。
+    - content：主內容（頁面自己的 <h1> 放在這裡，每頁恰好一個 <h1>）。
+      子樣板寫法：{% block content %} 與 {% endblock %} 各自獨佔一行、不加 '-'，
+      內容最後一行保留換行，</main> 才會從新的一行開始。
+
+    Context（routes.md 第 3 節）：current_user、csrf_token、messages、app_timezone、request。
+    本樣板必須在上述變數未定義或為 None 時仍可渲染（500 可能發生在 Session 載入之前，
+    error-handling.md 3.2），此時導覽列顯示訪客版。
+
+    CSP（overview.md 第 8 節）：不得有 inline <script>、<style>、style=、on*= 屬性，不得使用 data: URI。
+    連結一律使用站內相對路徑，不使用 url_for（會以 Host 標頭組出絕對網址）。
+
+    空白控制（環境開啟 trim_blocks 與 lstrip_blocks，style-guide 7.6）：
+    - <!DOCTYPE> 之前的標籤用 '-'，確保文件開頭沒有任何空白。
+    - <html> 之內獨佔一行的 {% %} 標籤一律不加 '-'（整行會自動消失），每個 HTML 標籤輸出為獨立一行。
+
+    注意：子樣板若要使用表單巨集，必須自行
+        {% import 'macros/forms.html' as forms with context %}
+    （父樣板的 import 對子樣板的區塊不可見）。
+-#}
+{%- import 'macros/forms.html' as forms with context -%}
+
+{#-
+    導覽連結：完全相符 → aria-current="page"；位於該區段之下 → aria-current="true"。
+    資安：href 只能傳站內字面路徑（例如 '/venues'），不得傳使用者資料、查詢參數或 next / next_path。
+-#}
+{%- macro nav_link(href, text, path) -%}
+<a class="site-nav__link" href="{{ href }}"
+    {%- if path == href %} aria-current="page"{% elif path.startswith(href ~ '/') %} aria-current="true"{% endif %}>{{ text }}</a>
+{%- endmacro -%}
+
+{%- set user = current_user if (current_user is defined and current_user is not none) else none -%}
+{%- set flash_messages = messages if (messages is defined and messages is not none) else [] -%}
+{%- set current_path = (request.url.path | string) if (request is defined and request is not none) else '' -%}
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}淡江場地預約系統{% endblock %}</title>
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">跳到主要內容</a>
+
+    <header class="site-header">
+        <div class="container site-header__inner">
+            <a class="site-brand" href="/">淡江場地預約系統</a>
+
+            <nav class="site-nav" aria-label="主要導覽">
+                <ul class="site-nav__list">
+                    <li>{{ nav_link('/venues', '場地清單', current_path) }}</li>
+                    {# Sprint 1 尚未實作的「我的申請」（US-005）、「待審核」（US-006）不顯示（US-013 AC1、routes.md 2.1） #}
+                    {% if user is not none and user.is_student %}
+                    <li>{{ nav_link('/bookings/new', '申請場地', current_path) }}</li>
+                    {% endif %}
+                    {% if user is not none and user.is_staff %}
+                    <li>{{ nav_link('/admin/closed-periods', '不開放期間管理', current_path) }}</li>
+                    {% endif %}
+                </ul>
+            </nav>
+
+            <div class="site-account">
+                {% if user is not none %}
+                <span class="site-account__name"><span class="visually-hidden">目前登入：</span>{{ user.display_name }}</span>
+                <form class="inline-form" method="post" action="/logout">
+                    {{ forms.csrf_field() }}
+                    <button type="submit" class="button button--on-dark">登出</button>
+                </form>
+                {% else %}
+                <a class="button button--on-dark" href="/login">登入</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main id="main" class="site-main container" tabindex="-1">
+        {% if flash_messages %}
+        <div class="flash-list">
+            {% for message in flash_messages %}
+            {% set level = message.level if message.level in ('success', 'info', 'warning', 'error') else 'info' %}
+            <div class="flash flash--{{ level }}" role="{{ 'alert' if level == 'error' else 'status' }}">
+                <p>{{ message.text }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>淡江大學學生活動場地借用系統{% if app_timezone is defined and app_timezone %}・時間皆以 {{ app_timezone }} 時區顯示{% endif %}</p>
+        </div>
+    </footer>
+</body>
+</html>
