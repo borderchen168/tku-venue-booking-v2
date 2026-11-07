@@ -221,19 +221,19 @@ git branch -D feature/T-012-booking-api
 # 建立環境（Windows 啟用方式：.venv\Scripts\activate）
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip pip-tools
-python -m piptools compile --extra dev -o requirements-dev.lock pyproject.toml
-python -m piptools compile -o requirements.lock pyproject.toml
-python -m pip install -r requirements-dev.lock
-python -m pip install -e . --no-deps
+python -m pip install --upgrade pip pip-tools   # bootstrap 例外：此步驟未鎖版本，之後的安裝一律驗證 hash
+python -m piptools compile --strip-extras --generate-hashes --allow-unsafe --extra dev -o requirements-dev.lock pyproject.toml
+python -m piptools compile --strip-extras --generate-hashes -o requirements.lock pyproject.toml
+python -m pip install --require-hashes -r requirements-dev.lock
+python -m pip install -e . --no-deps        # 需在上一行之後、分開執行（本專案本身沒有 hash）
 pre-commit install
 
 # 設定
 cp .env.example .env        # Windows：copy .env.example .env
 
 # 執行
-python -m alembic upgrade head
-python -m uvicorn app.main:app --reload
+python -m alembic upgrade head        # T-004 / T-005 完成後可用
+python -m uvicorn app.main:app --reload --no-server-header
 
 # 品質檢查
 python -m ruff check --fix .
@@ -241,6 +241,7 @@ python -m ruff format .
 python -m mypy app
 python -m pytest
 python -m pip_audit -r requirements.lock
+python -m pip_audit -r requirements-dev.lock
 ```
 
 ---

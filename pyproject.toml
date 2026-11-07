@@ -8,23 +8,27 @@ version = '0.1.0'
 description = '淡江大學場地預約系統'
 requires-python = '>=3.14'
 dependencies = [
-    'fastapi>=0.115',
+    # 鎖定 minor：T-023 的 LimitedFormRoute 與 route 覆蓋測試依賴 0.162 的 routing 行為（overview.md 第 9 節）
+    'fastapi>=0.162,<0.163',
     'uvicorn[standard]>=0.32',
     'jinja2>=3.1',
     'python-multipart>=0.0.18',
-    'itsdangerous>=2.2',
-    'sqlalchemy>=2.0',
+    # 鎖上限避免 2.2 行為變更（ADR-003，overview.md 第 9 節）
+    'sqlalchemy>=2.0,<2.2',
     'alembic>=1.14',
     'pydantic>=2.12',
     'pydantic-settings>=2.6',
     'argon2-cffi>=23.1',
+    # Windows 沒有系統 IANA 時區資料，ZoneInfo 需要（ADR-004）
+    'tzdata>=2024.1',
 ]
 
 [project.optional-dependencies]
 dev = [
     'pytest>=8.3',
     'pytest-cov>=6.0',
-    'httpx>=0.28',
+    # Starlette 1.10 的 TestClient 以 httpx2 取代 httpx（httpx 已標示 deprecated）
+    'httpx2>=2.16',
     'ruff>=0.17',
     'mypy>=2.0',
     'pre-commit>=4.0',
@@ -40,7 +44,8 @@ include = ['app*']
 target-version = 'py314'
 line-length = 140
 indent-width = 4
-extend-exclude = ['migrations/versions']
+# Markdown 內的程式碼區塊為設計文件的簽章示意（含對齊註解與 `...`），不交給 ruff 檢查或格式化
+extend-exclude = ['migrations/versions', '*.md']
 
 [tool.ruff.format]
 quote-style = 'single'
@@ -66,6 +71,12 @@ select = [
 ]
 # W191（tab 縮排）由 formatter 處理，避免與 formatter 衝突
 ignore = ['W191']
+# 繁體中文註解與訊息使用全形標點（AGENTS.md 第 0 節），不視為易混淆字元（RUF001～RUF003）
+allowed-confusables = ['，', '；', '：', '（', '）', '＋', '＝', '～', '！', '？']
+
+[tool.ruff.lint.pep8-naming]
+# 設計文件（error-handling.md 第 2 節）指定的例外類別名稱，不加 Error 字尾（N818）
+ignore-names = ['FieldErrors', 'LoginRequired']
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI 的相依注入寫法
@@ -85,6 +96,8 @@ exclude = ['migrations/']
 [tool.pytest.ini_options]
 testpaths = ['tests']
 addopts = '-ra --strict-markers --cov=app --cov-branch --cov-report=term-missing --cov-fail-under=80'
+# 交易設定未生效等 SQLAlchemy 警告直接使測試失敗（ADR-003）
+filterwarnings = ['error::sqlalchemy.exc.SAWarning']
 
 [tool.coverage.run]
 branch = true
