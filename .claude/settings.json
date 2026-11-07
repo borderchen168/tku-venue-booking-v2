@@ -2,6 +2,9 @@
   "permissions": {
     "deny": [
       "Bash(gh auth token:*)",
+      "Bash(gh auth status *-t*)",
+      "Bash(gh auth status *--show-token*)",
+      "Bash(gh gist create:*)",
       "Bash(gh auth refresh:*)",
       "Bash(gh auth logout:*)",
       "Bash(gh repo delete:*)",
@@ -24,6 +27,12 @@
       "Bash(gh api --method DELETE:*)",
       "Bash(gh api * -X DELETE*)",
       "Bash(gh api * --method DELETE*)",
+      "Bash(gh api *--method=DELETE*)",
+      "Bash(gh api *--method=delete*)",
+      "Bash(gh api *-X delete*)",
+      "Bash(gh api *--method delete*)",
+      "Bash(gh api graphql *delete*)",
+      "Bash(gh api graphql *Delete*)",
       "Bash(gh api *rulesets*)",
       "Bash(gh api *protection*)",
       "Bash(gh api *actions/*)",
@@ -38,7 +47,14 @@
       "Bash(git push * -f *)",
       "Bash(git push --mirror:*)",
       "Bash(git push --delete:*)",
-      "Bash(git push * --delete *)"
+      "Bash(git push * --delete *)",
+      "Bash(git push * -f)",
+      "Bash(git push *+*)",
+      "Bash(git push * :*)"
+    ],
+    "ask": [
+      "Bash(gh pr merge:*)",
+      "Bash(gh api graphql:*)"
     ]
   }
 }

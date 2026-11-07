@@ -50,7 +50,8 @@ def find_issue_number(ref: str) -> int:
         return int(ref)
     if not KEY_PATTERN.fullmatch(ref):
         raise SystemExit(f'編號格式不正確：{ref}（例如 T-004 或 31）')
-    issues = gh('issue', 'list', '-R', REPO, '--state', 'all', '--limit', '5000', '--json', 'number,title')
+    # 只採信 repo 擁有者建立的 Issue（AGENTS.md 3.1）：public repo 中他人建立的同前綴 Issue 不列入比對
+    issues = gh('issue', 'list', '-R', REPO, '--state', 'all', '--author', OWNER, '--limit', '5000', '--json', 'number,title')
     matches = [i['number'] for i in issues if i['title'].startswith(f'[{ref}] ')]
     if len(matches) != 1:
         raise SystemExit(f'找不到唯一的 [{ref}] Issue（找到 {len(matches)} 個）')

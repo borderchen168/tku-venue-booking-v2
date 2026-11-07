@@ -320,13 +320,10 @@ class GitHub:
         """唯讀 GraphQL 查詢。"""
         return self._run(['api', 'graphql', '--input', '-'], {'query': query, 'variables': variables})['data']
 
-    def write(
-        self, description: str, method: str = '', path: str = '', payload: Any = None, *, graphql: str = '', quiet: bool = False
-    ) -> Any:
-        """寫入動作：dry-run 時只印出說明，否則執行並稍作等待。quiet 時不印出說明（由呼叫端彙整輸出）。"""
+    def write(self, description: str, method: str = '', path: str = '', payload: Any = None, *, graphql: str = '') -> Any:
+        """寫入動作：dry-run 時只印出說明，否則執行並稍作等待。"""
         prefix = '[dry-run] ' if self.dry_run else ''
-        if not quiet:
-            print(f'  {prefix}{description}')
+        print(f'  {prefix}{description}')
         if self.dry_run:
             return None
         if graphql:
@@ -490,7 +487,7 @@ def _ensure_fields(gh: GitHub, project_id: str, url: str) -> ProjectInfo | None:
 LIST_ISSUES_QUERY = """
 query($owner: String!, $name: String!, $after: String) {
   repository(owner: $owner, name: $name) {
-    issues(first: 100, after: $after, states: [OPEN, CLOSED]) {
+    issues(first: 100, after: $after, states: [OPEN, CLOSED], filterBy: {createdBy: $owner}) {
       nodes { number title state databaseId id }
       pageInfo { hasNextPage endCursor }
     }
@@ -504,6 +501,7 @@ def load_existing_issues(gh: GitHub, items: list[Item]) -> int:
     """以標題前綴對應既有 Issue；回傳下一個可能的 issue 編號（供 dry-run 預估）。
 
     使用 GraphQL：新 repo 的 REST 列表 API 與 search 有索引延遲，可能暫時回傳 0 筆。
+    只比對 repo 擁有者建立的 Issue（AGENTS.md 3.1），他人建立的同前綴 Issue 不會被當成已遷移的項目。
     """
     by_key = {item.key: item for item in items}
     owner, name = gh.repo.split('/')
@@ -703,15 +701,14 @@ def ensure_project_items(gh: GitHub, items: list[Item], project: ProjectInfo | N
         for name, shown, value in values:
             if name in filled:
                 continue
-            if item.number in existing:
-                print(f'  {"[dry-run] " if gh.dry_run else ""}補寫 #{item.number} {item.key} 的 {name}={shown}')
             if project is None or item_id is None:
+                # dry-run：Project 或項目尚未建立，欄位已在「加入」那一行列出
                 continue
+            action = '補寫' if item.number in existing else '  設定'
             gh.write(
-                f'  設定 #{item.number} {name}={shown}',
+                f'{action} #{item.number} {item.key} 的 {name}={shown}',
                 payload={'project': project.project_id, 'item': item_id, 'field': project.fields[name]['id'], 'value': value},
                 graphql=SET_FIELD,
-                quiet=True,
             )
 
 
