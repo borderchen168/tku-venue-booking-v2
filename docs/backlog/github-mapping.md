@@ -56,6 +56,6 @@ Backlog 已於 2026-11-07 遷移到 GitHub（IS-001），之後以 [GitHub Issue
 | T-021 | Task | [#48](https://github.com/borderchen168/tku-venue-booking-v2/issues/48) | 認證與 Session 安全負面測試 | `docs/backlog/tasks/T-021-auth-security-tests.md` |
 | T-022 | Task | [#49](https://github.com/borderchen168/tku-venue-booking-v2/issues/49) | 申請規則、併發與 Sprint Demo 端到端測試 | `docs/backlog/tasks/T-022-booking-rules-demo-e2e-tests.md` |
 | T-023 | Task | [#50](https://github.com/borderchen168/tku-venue-booking-v2/issues/50) | HTTP 安全中介層、表單限制與統一錯誤處理 | `docs/backlog/tasks/T-023-http-security-middleware-errors.md` |
-| IS-001 | Issue | [#51](https://github.com/borderchen168/tku-venue-booking-v2/issues/51) | 遷移到 GitHub：Repo、Project 與 Backlog | `docs/backlog/issues/IS-001-github-migration.md` |
-| IS-002 | Issue | [#52](https://github.com/borderchen168/tku-venue-booking-v2/issues/52) | 建立 GitHub Actions CI | `docs/backlog/issues/IS-002-ci.md` |
-| IS-003 | Issue | [#53](https://github.com/borderchen168/tku-venue-booking-v2/issues/53) | 建立 CD：部署到本機 self-hosted runner | `docs/backlog/issues/IS-003-cd.md` |
+| IS-001 | Issue | [#51](https://github.com/borderchen168/tku-venue-booking-v2/issues/51) | 遷移到 GitHub：Repo、Project 與 Backlog | — |
+| IS-002 | Issue | [#52](https://github.com/borderchen168/tku-venue-booking-v2/issues/52) | 建立 GitHub Actions CI | — |
+| IS-003 | Issue | [#53](https://github.com/borderchen168/tku-venue-booking-v2/issues/53) | 建立 CD：部署到本機 self-hosted runner | — |

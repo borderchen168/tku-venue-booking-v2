@@ -8,6 +8,7 @@ body:
       value: |
         標題前綴請改為下一個 Task 編號，並加上負責角色的 `role:*` label。
         建立後以 sub-issue 掛到主要 Story 底下，相依 Task 以 blocked by 設定；Sprint 請在 Project 設定。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
   - type: input
     id: stories
     attributes:
@@ -31,8 +32,6 @@ body:
     attributes:
       label: 完成條件
       value: '- [ ] '
-    validations:
-      required: true
   - type: textarea
     id: notes
     attributes:

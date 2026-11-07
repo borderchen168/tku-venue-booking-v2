@@ -8,6 +8,7 @@ body:
       value: |
         標題前綴請改為下一個 Epic 編號（GitHub 上現有最大編號 +1）。Priority 請在 Project 設定。
         Story 建立後以 sub-issue 掛到此 Epic 底下。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
   - type: textarea
     id: goal
     attributes:
@@ -22,8 +23,6 @@ body:
       value: |
         - 包含：
         - 不包含：
-    validations:
-      required: true
   - type: textarea
     id: metrics
     attributes:

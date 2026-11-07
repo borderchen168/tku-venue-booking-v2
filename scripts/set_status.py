@@ -6,13 +6,17 @@
     python scripts/set_status.py 31 Review
     python scripts/set_status.py T-004            # 只顯示目前 Status
 
-合併 PR 時 Issue 自動關閉，Project 內建 workflow 會把 Status 改為 Done，通常不需手動設定 Done。
+合併 PR 時 Issue 自動關閉，Project 內建 workflow（Item closed、Pull request merged）會把 Status 改為 Done，
+通常不需手動設定 Done。
+
+請在受信任的目錄執行：腳本以 `shutil.which('gh')` 尋找 gh，Windows 上可能先找到目前目錄中的同名執行檔。
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -22,6 +26,8 @@ REPO = 'borderchen168/tku-venue-booking-v2'
 OWNER = 'borderchen168'
 PROJECT_NUMBER = 2
 STATUSES = ['Todo', 'In Progress', 'Review', 'Done', 'Blocked']
+KEY_PATTERN = re.compile(r'(EP|US|T|BUG|IS)-\d{3}')
+NUMBER_PATTERN = re.compile(r'[1-9]\d{0,5}')
 
 
 def gh(*args: str) -> Any:
@@ -36,10 +42,15 @@ def gh(*args: str) -> Any:
 
 
 def find_issue_number(ref: str) -> int:
-    """將 `T-004` 或 `31` 轉為 issue 編號。"""
-    if ref.isdigit():
+    """將 `T-004` 或 `31` 轉為 issue 編號。
+
+    不使用 GitHub search（有索引延遲且忽略 `[`、`]`），改為列出全部 Issue 後在本機比對標題前綴。
+    """
+    if NUMBER_PATTERN.fullmatch(ref):
         return int(ref)
-    issues = gh('issue', 'list', '-R', REPO, '--state', 'all', '--search', f'"[{ref}]" in:title', '--json', 'number,title')
+    if not KEY_PATTERN.fullmatch(ref):
+        raise SystemExit(f'編號格式不正確：{ref}（例如 T-004 或 31）')
+    issues = gh('issue', 'list', '-R', REPO, '--state', 'all', '--limit', '5000', '--json', 'number,title')
     matches = [i['number'] for i in issues if i['title'].startswith(f'[{ref}] ')]
     if len(matches) != 1:
         raise SystemExit(f'找不到唯一的 [{ref}] Issue（找到 {len(matches)} 個）')

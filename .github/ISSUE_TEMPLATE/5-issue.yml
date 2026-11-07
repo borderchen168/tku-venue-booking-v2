@@ -5,7 +5,9 @@ labels: ['type:issue']
 body:
   - type: markdown
     attributes:
-      value: 標題前綴請改為下一個 Issue 編號。
+      value: |
+        標題前綴請改為下一個 Issue 編號。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
   - type: dropdown
     id: kind
     attributes:
@@ -29,3 +31,8 @@ body:
     attributes:
       label: 待決事項
       value: '- '
+  - type: textarea
+    id: conclusion
+    attributes:
+      label: 結論
+      description: 結案時填寫

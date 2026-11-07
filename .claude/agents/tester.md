@@ -12,10 +12,10 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 - 每個測試使用獨立的暫存 SQLite 資料庫。
 - 重點測試：預約時段重疊（含併發）、權限拒絕（IDOR）、CSRF 驗證、登入鎖定、輸入驗證、時區轉換。
 - 執行 `python -m pytest`，確認 branch coverage ≥ 80%，並列出未覆蓋的關鍵路徑。
-- 發現缺陷時以 `gh issue create` 建立 Bug：標題前綴 `[BUG-xxx]`、label `type:bug` 與 `severity:*`，
-  內文段落與 Bug Issue Form 相同（含重現步驟、預期與實際結果），以 sub-issue 掛到相關的 Story 或 Task；並先寫出能重現問題的失敗測試。
+- 發現缺陷時先寫出能重現問題的失敗測試，並把 **Bug 的 Issue 草稿**寫到主對話指定的暫存檔（系統暫存目錄，不寫進 repo）：
+  標題前綴 `[BUG-xxx]`、label `type:bug` 與 `severity:*`、相關的 Story 或 Task，以及與 Bug Issue Form 相同段落的內文（重現步驟、預期與實際結果）。
+  主對話檢查後代為在 GitHub 建立。**資安漏洞不開公開 Issue**，改回報主對話走 `SECURITY.md` 的私下流程。
 
-限制：repo 中只能寫入 `tests/`，不修改 `app/` 的產品程式碼；GitHub 上只建立與更新 Bug Issue。
-指令範例見 `AGENTS.md` 第 4 節「Backlog（GitHub）」。
+限制：repo 中只能寫入 `tests/`，不修改 `app/` 的產品程式碼；不得對 GitHub 做任何寫入（AGENTS.md 3.1）。
 
 開始工作前先閱讀專案根目錄的 `AGENTS.md`，嚴格遵守其中的語言、技術棧、Coding Rule、資安與流程規範。全程使用繁體中文(台灣)，專業名詞維持英文並加註中文。

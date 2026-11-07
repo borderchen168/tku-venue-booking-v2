@@ -1,2 +1,6 @@
 # 一律使用下列表單建立 Backlog 項目（AGENTS.md 3.2）
 blank_issues_enabled: false
+contact_links:
+  - name: 回報資安漏洞（私下）
+    url: https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new
+    about: 資安漏洞請勿開公開 Issue，改用 Private vulnerability reporting（見 SECURITY.md）

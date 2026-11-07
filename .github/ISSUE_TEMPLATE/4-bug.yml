@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         標題前綴請改為下一個 Bug 編號。建立後以 sub-issue 掛到相關的 Story 或 Task 底下。
-        請勿貼上密碼、Token、`.env` 內容或完整個資。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
   - type: dropdown
     id: severity
     attributes:
@@ -33,8 +33,6 @@ body:
     attributes:
       label: 重現步驟
       value: '1. '
-    validations:
-      required: true
   - type: textarea
     id: expected
     attributes:
@@ -52,3 +50,13 @@ body:
     attributes:
       label: 重現測試
       description: 能重現此問題的測試，例如 tests/integration/test_booking.py::test_xxx
+  - type: textarea
+    id: cause
+    attributes:
+      label: 原因分析
+      description: 修正時填寫
+  - type: textarea
+    id: fix
+    attributes:
+      label: 修正說明
+      description: 修正時填寫

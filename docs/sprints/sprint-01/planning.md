@@ -79,8 +79,8 @@
 | T-021 | 認證與 Session 安全負面測試 | US-013 | tester | T-009, T-010, T-012 | 與 T-015～T-020 平行 |
 | T-022 | 申請規則、併發與 Sprint Demo 端到端測試 | US-004, US-002, US-017, US-001 | tester | T-009, T-015, T-020 | 否（最後） |
 
-Task 檔案：`docs/backlog/tasks/T-001-*.md` ～ `T-023-*.md`（T-023 為 2026-11-06 自 T-003 拆出，編號接續，執行順序位於波次 2）。
-2026-11-07 起 Backlog 已遷移到 GitHub（IS-001）：Task 為 Issue #28～#50，對照見 `docs/backlog/github-mapping.md`，
+Task：GitHub Issue #28～#50（T-001～T-023，舊編號對照見 `docs/backlog/github-mapping.md`；T-023 為 2026-11-06 自 T-003 拆出，編號接續，執行順序位於波次 2）。
+2026-11-07 起 Backlog 已遷移到 GitHub（IS-001），原 `docs/backlog/tasks/*.md` 已移除（遷移前版本見 commit `52709d3`），
 狀態以 GitHub Project「淡江場地預約系統」的 Sprint 1 為準。
 
 ## 建議執行順序（波次）

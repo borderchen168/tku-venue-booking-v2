@@ -8,13 +8,12 @@ body:
       value: |
         標題前綴請改為下一個 Story 編號。建立後以 sub-issue 掛到所屬 Epic 底下；
         Priority、Story Points、Sprint 請在 Project 設定。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
   - type: textarea
     id: story
     attributes:
       label: User Story(使用者故事)
       value: 身為 <角色>，我想要 <功能>，以便 <價值>。
-    validations:
-      required: true
   - type: textarea
     id: acceptance
     attributes:
@@ -24,8 +23,6 @@ body:
         - Given <前提>
         - When <動作>
         - Then <預期結果>
-    validations:
-      required: true
   - type: textarea
     id: rules
     attributes:
@@ -38,8 +35,6 @@ body:
       value: |
         - 權限：
         - 輸入驗證：
-    validations:
-      required: true
   - type: checkboxes
     id: dor
     attributes:

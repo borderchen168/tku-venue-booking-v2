@@ -30,6 +30,9 @@ BACKLOG_DIR = PROJECT_ROOT / 'docs' / 'backlog'
 MAPPING_FILE = BACKLOG_DIR / 'github-mapping.md'
 # 遷移前最後一個含 docs/backlog/ Markdown 項目的 main commit
 PRE_MIGRATION_COMMIT = '52709d3'
+# 遷移時才建立、不存在於 PRE_MIGRATION_COMMIT 的項目
+CREATED_DURING_MIGRATION = {'IS-001', 'IS-002', 'IS-003'}
+REPO_PATTERN = re.compile(r'[A-Za-z0-9-]+/[A-Za-z0-9._-]+')
 
 DEFAULT_REPO = 'borderchen168/tku-venue-booking-v2'
 DEFAULT_PROJECT_TITLE = '淡江場地預約系統'
@@ -175,7 +178,9 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Meta], str]:
     lines = text.splitlines()
     if not lines or lines[0].strip() != '---':
         raise ValueError('缺少 frontmatter')
-    end = next(i for i in range(1, len(lines)) if lines[i].strip() == '---')
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == '---'), None)
+    if end is None:
+        raise ValueError('frontmatter 缺少結尾的 ---')
     meta: dict[str, Meta] = {}
     for line in lines[1:end]:
         if not line.strip():
@@ -195,7 +200,10 @@ def load_items() -> list[Item]:
     items: list[Item] = []
     for kind, dirname in KIND_DIRS.items():
         for path in sorted((BACKLOG_DIR / dirname).glob('*.md')):
-            meta, body = parse_frontmatter(path.read_text(encoding='utf-8'))
+            try:
+                meta, body = parse_frontmatter(path.read_text(encoding='utf-8'))
+            except ValueError as exc:
+                raise ValueError(f'{path}：{exc}') from exc
             key = meta.get('id')
             title = meta.get('title')
             if not isinstance(key, str) or not KEY_PATTERN.match(key) or not isinstance(title, str):
@@ -205,19 +213,44 @@ def load_items() -> list[Item]:
 
 
 def validate(items: list[Item]) -> None:
-    """確認編號不重複，且父項目與相依項目都存在。"""
+    """在任何 GitHub 寫入之前檢查：編號不重複、參照存在、欄位值都能對應到 Label 或 Project 選項。"""
     keys = [item.key for item in items]
     duplicates = {k for k in keys if keys.count(k) > 1}
     if duplicates:
         raise ValueError(f'編號重複：{sorted(duplicates)}')
     known = set(keys)
+    sprint_titles = {title for title, _ in SPRINTS}
+    errors: list[str] = []
     for item in items:
         refs = [*item.meta_list('depends_on'), *(item.meta_list('story') if item.kind == 'task' else [])]
         if item.parent_key:
             refs.append(item.parent_key)
         missing = [r for r in refs if r not in known]
         if missing:
-            raise ValueError(f'{item.key} 參照不存在的項目：{missing}')
+            errors.append(f'{item.key} 參照不存在的項目：{missing}')
+        status = item.meta_str('status')
+        if status and status not in STATUS_MAP:
+            errors.append(f'{item.key} 的 status 不正確：{status}')
+        priority = item.meta_str('priority')
+        if priority and priority not in PRIORITY_MAP:
+            errors.append(f'{item.key} 的 priority 不正確：{priority}')
+        sprint = item.meta_str('sprint')
+        if sprint and sprint_title(sprint) not in sprint_titles:
+            errors.append(f'{item.key} 的 sprint 不在 SPRINTS 中：{sprint}')
+        assignee = item.meta_str('assignee')
+        if assignee and assignee not in ROLES:
+            errors.append(f'{item.key} 的 assignee 不是已知角色：{assignee}')
+        severity = item.meta_str('severity')
+        if item.kind == 'bug' and severity and f'severity:{severity}' not in {name for name, _, _ in LABELS}:
+            errors.append(f'{item.key} 的 severity 不正確：{severity}')
+    if errors:
+        raise ValueError('\n'.join(errors))
+
+
+def sprint_title(sprint: str) -> str:
+    """`sprint-01` → `Sprint 1`；格式不符時原樣回傳（交由 validate 報錯）。"""
+    match = re.fullmatch(r'sprint-(\d+)', sprint)
+    return f'Sprint {int(match.group(1))}' if match else sprint
 
 
 def build_body(item: Item, by_key: dict[str, Item]) -> str:
@@ -287,10 +320,13 @@ class GitHub:
         """唯讀 GraphQL 查詢。"""
         return self._run(['api', 'graphql', '--input', '-'], {'query': query, 'variables': variables})['data']
 
-    def write(self, description: str, method: str = '', path: str = '', payload: Any = None, *, graphql: str = '') -> Any:
-        """寫入動作：dry-run 時只印出說明，否則執行並稍作等待。"""
+    def write(
+        self, description: str, method: str = '', path: str = '', payload: Any = None, *, graphql: str = '', quiet: bool = False
+    ) -> Any:
+        """寫入動作：dry-run 時只印出說明，否則執行並稍作等待。quiet 時不印出說明（由呼叫端彙整輸出）。"""
         prefix = '[dry-run] ' if self.dry_run else ''
-        print(f'  {prefix}{description}')
+        if not quiet:
+            print(f'  {prefix}{description}')
         if self.dry_run:
             return None
         if graphql:
@@ -381,17 +417,18 @@ def ensure_project(gh: GitHub, title: str) -> ProjectInfo | None:
 
 
 def _configure_new_project(gh: GitHub, project_id: str) -> None:
-    gh._run(
-        ['api', 'graphql', '--input', '-'],
-        {
-            'query': 'mutation($id: ID!, $desc: String!) {'
-            ' updateProjectV2(input: {projectId: $id, public: true, shortDescription: $desc}) { projectV2 { id } } }',
-            'variables': {'id': project_id, 'desc': PROJECT_DESCRIPTION},
-        },
+    gh.write(
+        '設定 Project 為公開並加上簡短說明',
+        payload={'id': project_id, 'desc': PROJECT_DESCRIPTION},
+        graphql='mutation($id: ID!, $desc: String!) {'
+        ' updateProjectV2(input: {projectId: $id, public: true, shortDescription: $desc}) { projectV2 { id } } }',
     )
 
 
-def _ensure_fields(gh: GitHub, project_id: str, url: str) -> ProjectInfo:
+REQUIRED_FIELDS = ('Status', 'Priority', 'Story Points', 'Sprint')
+
+
+def _ensure_fields(gh: GitHub, project_id: str, url: str) -> ProjectInfo | None:
     fields = {f['name']: f for f in gh.query(FIELDS_QUERY, id=project_id)['node']['fields']['nodes'] if f}
     status = fields['Status']
     if [o['name'] for o in status['options']] != [n for n, _, _ in STATUS_OPTIONS]:
@@ -439,35 +476,58 @@ def _ensure_fields(gh: GitHub, project_id: str, url: str) -> ProjectInfo:
             },
             graphql=create_field,
         )
-    if gh.dry_run:
-        return ProjectInfo(project_id, url, fields)
-    fields = {f['name']: f for f in gh.query(FIELDS_QUERY, id=project_id)['node']['fields']['nodes'] if f}
+    if not gh.dry_run:
+        fields = {f['name']: f for f in gh.query(FIELDS_QUERY, id=project_id)['node']['fields']['nodes'] if f}
+    if any(name not in fields for name in REQUIRED_FIELDS):
+        # 只會發生在 dry-run：欄位尚未建立，無法取得選項 id
+        return None
     return ProjectInfo(project_id, url, fields)
 
 
 # ---------- Issues ----------
 
 
+LIST_ISSUES_QUERY = """
+query($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    issues(first: 100, after: $after, states: [OPEN, CLOSED]) {
+      nodes { number title state databaseId id }
+      pageInfo { hasNextPage endCursor }
+    }
+    pullRequests(last: 1) { nodes { number } }
+  }
+}
+"""
+
+
 def load_existing_issues(gh: GitHub, items: list[Item]) -> int:
-    """以標題前綴對應既有 Issue；回傳下一個可能的 issue 編號（供 dry-run 預估）。"""
+    """以標題前綴對應既有 Issue；回傳下一個可能的 issue 編號（供 dry-run 預估）。
+
+    使用 GraphQL：新 repo 的 REST 列表 API 與 search 有索引延遲，可能暫時回傳 0 筆。
+    """
     by_key = {item.key: item for item in items}
+    owner, name = gh.repo.split('/')
     max_number = 0
-    for issue in gh.get(f'repos/{gh.repo}/issues?state=all&per_page=100'):
-        max_number = max(max_number, int(issue['number']))
-        if 'pull_request' in issue:
-            continue
-        match = TITLE_PATTERN.match(issue['title'])
-        if match and match.group(1) in by_key:
-            item = by_key[match.group(1)]
-            item.number, item.db_id, item.node_id = issue['number'], issue['id'], issue['node_id']
-            item.is_open = issue['state'] == 'open'
-    pulls = gh.get(f'repos/{gh.repo}/pulls?state=all&per_page=100')
-    max_number = max([max_number, *[int(p['number']) for p in pulls]])
+    after = None
+    while True:
+        repo = gh.query(LIST_ISSUES_QUERY, owner=owner, name=name, after=after)['repository']
+        for pr in repo['pullRequests']['nodes']:
+            max_number = max(max_number, int(pr['number']))
+        for issue in repo['issues']['nodes']:
+            max_number = max(max_number, int(issue['number']))
+            match = TITLE_PATTERN.match(issue['title'])
+            if match and match.group(1) in by_key:
+                item = by_key[match.group(1)]
+                item.number, item.db_id, item.node_id = issue['number'], issue['databaseId'], issue['id']
+                item.is_open = issue['state'] == 'OPEN'
+        if not repo['issues']['pageInfo']['hasNextPage']:
+            break
+        after = repo['issues']['pageInfo']['endCursor']
     return max_number + 1
 
 
 def ensure_issues(gh: GitHub, items: list[Item]) -> None:
-    """建立缺少的 Issue；狀態為 done 的項目建立後關閉。"""
+    """建立缺少的 Issue；狀態為 done 的項目在建立時一併關閉（既有 Issue 的開關狀態不更動）。"""
     print('\n== Issues')
     by_key = {item.key: item for item in items}
     next_number = load_existing_issues(gh, items)
@@ -492,7 +552,7 @@ def ensure_issues(gh: GitHub, items: list[Item]) -> None:
             else:
                 item.number, item.db_id, item.node_id = result['number'], result['id'], result['node_id']
             next_number += 1
-        if item.meta_str('status') == 'done' and item.is_open:
+        if item.created_now and item.meta_str('status') == 'done' and item.is_open:
             gh.write(
                 f'關閉 #{item.number} {item.key}（status: done）',
                 'PATCH',
@@ -554,7 +614,17 @@ query($id: ID!, $after: String) {
   node(id: $id) {
     ... on ProjectV2 {
       items(first: 100, after: $after) {
-        nodes { content { ... on Issue { number repository { nameWithOwner } } } }
+        nodes {
+          id
+          content { ... on Issue { number repository { nameWithOwner } } }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue { field { ... on ProjectV2FieldCommon { name } } }
+              ... on ProjectV2ItemFieldNumberValue { field { ... on ProjectV2FieldCommon { name } } }
+              ... on ProjectV2ItemFieldIterationValue { field { ... on ProjectV2FieldCommon { name } } }
+            }
+          }
+        }
         pageInfo { hasNextPage endCursor }
       }
     }
@@ -590,7 +660,7 @@ def field_values(item: Item, project: ProjectInfo | None) -> list[tuple[str, str
         values.append(('Story Points', points, {'number': float(points)}))
     sprint = item.meta_str('sprint')
     if sprint:
-        title = f'Sprint {int(sprint.removeprefix("sprint-"))}'
+        title = sprint_title(sprint)
         iteration: dict[str, Any] = {}
         if project is not None:
             its = project.fields['Sprint']['configuration']['iterations']
@@ -600,9 +670,9 @@ def field_values(item: Item, project: ProjectInfo | None) -> list[tuple[str, str
 
 
 def ensure_project_items(gh: GitHub, items: list[Item], project: ProjectInfo | None) -> None:
-    """把 Issue 加入 Project 並寫入欄位；已在 Project 中的項目不覆寫欄位。"""
+    """把 Issue 加入 Project，並只補寫尚未設定的欄位（已設定的欄位不覆寫）。"""
     print('\n== Project 項目與欄位')
-    in_project: set[int] = set()
+    existing: dict[int, tuple[str, set[str]]] = {}
     if project is not None:
         after = None
         while True:
@@ -610,31 +680,38 @@ def ensure_project_items(gh: GitHub, items: list[Item], project: ProjectInfo | N
             for node in page['nodes']:
                 content = node['content']
                 if content and content.get('repository', {}).get('nameWithOwner') == gh.repo:
-                    in_project.add(content['number'])
+                    filled = {v['field']['name'] for v in node['fieldValues']['nodes'] if v and v.get('field')}
+                    existing[content['number']] = (node['id'], filled)
             if not page['pageInfo']['hasNextPage']:
                 break
             after = page['pageInfo']['endCursor']
     for item in items:
-        if item.number in in_project:
-            continue
         values = field_values(item, project)
-        summary = '、'.join(f'{name}={shown}' for name, shown, _ in values)
-        added = gh.write(
-            f'加入 #{item.number} {item.key}：{summary}',
-            payload={'project': project.project_id if project else '', 'content': item.node_id},
-            graphql='mutation($project: ID!, $content: ID!) {'
-            ' addProjectV2ItemById(input: {projectId: $project, contentId: $content}) { item { id } } }',
-        )
-        if added is None or project is None:
-            continue
-        item_id = added['addProjectV2ItemById']['item']['id']
-        for name, _, value in values:
-            gh._run(
-                ['api', 'graphql', '--input', '-'],
-                {
-                    'query': SET_FIELD,
-                    'variables': {'project': project.project_id, 'item': item_id, 'field': project.fields[name]['id'], 'value': value},
-                },
+        if item.number in existing:
+            item_id: str | None = existing[item.number][0]
+            filled = existing[item.number][1]
+        else:
+            summary = '、'.join(f'{name}={shown}' for name, shown, _ in values)
+            added = gh.write(
+                f'加入 #{item.number} {item.key}：{summary}',
+                payload={'project': project.project_id if project else '', 'content': item.node_id},
+                graphql='mutation($project: ID!, $content: ID!) {'
+                ' addProjectV2ItemById(input: {projectId: $project, contentId: $content}) { item { id } } }',
+            )
+            item_id = added['addProjectV2ItemById']['item']['id'] if added else None
+            filled = set()
+        for name, shown, value in values:
+            if name in filled:
+                continue
+            if item.number in existing:
+                print(f'  {"[dry-run] " if gh.dry_run else ""}補寫 #{item.number} {item.key} 的 {name}={shown}')
+            if project is None or item_id is None:
+                continue
+            gh.write(
+                f'  設定 #{item.number} {name}={shown}',
+                payload={'project': project.project_id, 'item': item_id, 'field': project.fields[name]['id'], 'value': value},
+                graphql=SET_FIELD,
+                quiet=True,
             )
 
 
@@ -658,8 +735,8 @@ def write_mapping(gh: GitHub, items: list[Item], project_url: str) -> None:
     ]
     for item in items:
         url = f'https://github.com/{gh.repo}/issues/{item.number}'
-        rel = item.path.relative_to(PROJECT_ROOT).as_posix()
-        lines.append(f'| {item.key} | {kind_names[item.kind]} | [#{item.number}]({url}) | {item.title} | `{rel}` |')
+        rel = '—' if item.key in CREATED_DURING_MIGRATION else f'`{item.path.relative_to(PROJECT_ROOT).as_posix()}`'
+        lines.append(f'| {item.key} | {kind_names[item.kind]} | [#{item.number}]({url}) | {item.title} | {rel} |')
     MAPPING_FILE.write_text('\n'.join(lines) + '\n', encoding='utf-8')
     print(f'\n已寫入 {MAPPING_FILE.relative_to(PROJECT_ROOT).as_posix()}')
 
@@ -671,13 +748,27 @@ def main() -> int:
     parser.add_argument('--project-title', default=DEFAULT_PROJECT_TITLE)
     parser.add_argument('--dry-run', action='store_true', help='只列出將執行的寫入動作')
     parser.add_argument('--keep-default-labels', action='store_true', help='保留 GitHub 預設 labels')
+    parser.add_argument('--force', action='store_true', help='對照表已存在（遷移已完成）時仍執行，並覆寫對照表')
     args = parser.parse_args()
 
-    items = load_items()
-    if not items:
-        print('docs/backlog/ 已沒有待遷移的項目（遷移已完成），不執行任何動作。', file=sys.stderr)
+    if not REPO_PATTERN.fullmatch(args.repo):
+        parser.error(f'--repo 格式不正確：{args.repo}（應為 owner/name）')
+    if MAPPING_FILE.exists() and not args.force:
+        print(f'{MAPPING_FILE.relative_to(PROJECT_ROOT).as_posix()} 已存在，遷移已完成，不執行任何動作（需要重跑請加 --force）。')
+        return 0
+    try:
+        items = load_items()
+    except ValueError as exc:
+        print(f'Backlog 檔案解析失敗，未對 GitHub 做任何寫入：\n{exc}', file=sys.stderr)
         return 1
-    validate(items)
+    if not items:
+        print('docs/backlog/ 沒有待遷移的項目，不執行任何動作。')
+        return 0
+    try:
+        validate(items)
+    except ValueError as exc:
+        print(f'Backlog 資料檢查失敗，未對 GitHub 做任何寫入：\n{exc}', file=sys.stderr)
+        return 1
     counts = {kind: sum(1 for i in items if i.kind == kind) for kind in KIND_DIRS}
     print(f'讀取 {len(items)} 個項目：{counts}')
 
