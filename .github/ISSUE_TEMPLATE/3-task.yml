@@ -1,0 +1,39 @@
+name: Task(任務)
+description: Story 拆解出的開發工作，原則上在單一 branch 內完成
+title: '[T-000] '
+labels: ['type:task']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        標題前綴請改為下一個 Task 編號，並加上負責角色的 `role:*` label。
+        建立後以 sub-issue 掛到主要 Story 底下，相依 Task 以 blocked by 設定；Sprint 請在 Project 設定。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
+  - type: input
+    id: stories
+    attributes:
+      label: 相關 Story
+      description: 主要 Story 以外也相關的 Story，例如 #7、#10
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      placeholder: feature/T-000-<slug>
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 說明
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 完成條件
+      value: '- [ ] '
+  - type: textarea
+    id: notes
+    attributes:
+      label: 技術備註
+      value: '- '

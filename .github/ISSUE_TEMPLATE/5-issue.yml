@@ -1,0 +1,38 @@
+name: Issue(議題)
+description: 未分類的問題、雜務、技術債或待研究事項
+title: '[IS-000] '
+labels: ['type:issue']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        標題前綴請改為下一個 Issue 編號。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 類型
+      options: [question, chore, tech-debt, research]
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      placeholder: chore/IS-000-<slug>
+  - type: textarea
+    id: description
+    attributes:
+      label: 說明
+    validations:
+      required: true
+  - type: textarea
+    id: pending
+    attributes:
+      label: 待決事項
+      value: '- '
+  - type: textarea
+    id: conclusion
+    attributes:
+      label: 結論
+      description: 結案時填寫

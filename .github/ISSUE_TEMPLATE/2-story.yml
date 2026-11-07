@@ -1,0 +1,46 @@
+name: Story(使用者故事)
+description: 具使用者價值的需求，含 Given / When / Then 驗收條件
+title: '[US-000] '
+labels: ['type:story']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        標題前綴請改為下一個 Story 編號。建立後以 sub-issue 掛到所屬 Epic 底下；
+        Priority、Story Points、Sprint 請在 Project 設定。
+        請勿貼上密碼、Token、`.env` 內容或真實個資。**資安漏洞請勿開公開 Issue**，改用 Security 分頁的 [Report a vulnerability](https://github.com/borderchen168/tku-venue-booking-v2/security/advisories/new)（見 `SECURITY.md`）。
+  - type: textarea
+    id: story
+    attributes:
+      label: User Story(使用者故事)
+      value: 身為 <角色>，我想要 <功能>，以便 <價值>。
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 驗收條件（Acceptance Criteria）
+      value: |
+        ### AC1 <情境名稱>
+        - Given <前提>
+        - When <動作>
+        - Then <預期結果>
+  - type: textarea
+    id: rules
+    attributes:
+      label: 商業規則與限制
+      value: '- '
+  - type: textarea
+    id: security
+    attributes:
+      label: 資安考量
+      value: |
+        - 權限：
+        - 輸入驗證：
+  - type: checkboxes
+    id: dor
+    attributes:
+      label: DoR(就緒定義) 檢查
+      options:
+        - label: 使用者價值明確
+        - label: 驗收條件完整且可測試
+        - label: 已估點（Project 的 Story Points）
+        - label: 無未解決的相依項目（blocked by）
