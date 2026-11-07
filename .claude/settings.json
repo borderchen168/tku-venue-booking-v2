@@ -49,8 +49,7 @@
       "Bash(git push --delete:*)",
       "Bash(git push * --delete *)",
       "Bash(git push * -f)",
-      "Bash(git push *+*)",
-      "Bash(git push * :*)"
+      "Bash(git push *+*)"
     ],
     "ask": [
       "Bash(gh pr merge:*)",
