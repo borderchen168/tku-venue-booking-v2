@@ -84,6 +84,9 @@ extend-immutable-calls = ['fastapi.Depends', 'fastapi.Query', 'fastapi.Path', 'f
 
 [tool.ruff.lint.per-file-ignores]
 'tests/**' = ['S101', 'S105', 'S106', 'ANN']
+# 維運腳本以 shutil.which 取得 gh 絕對路徑、參數為固定清單且不使用 shell=True（AGENTS.md 2.3）
+# gh API 回傳的 JSON 結構不固定，GitHub 包裝函式以 Any 表示（ANN401）
+'scripts/**' = ['S603', 'ANN401']
 
 # ---------- mypy ----------
 [tool.mypy]

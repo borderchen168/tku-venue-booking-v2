@@ -1,0 +1,54 @@
+name: Bug(缺陷)
+description: 回報缺陷；修正前必須先寫出能重現問題的測試
+title: '[BUG-000] '
+labels: ['type:bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        標題前綴請改為下一個 Bug 編號。建立後以 sub-issue 掛到相關的 Story 或 Task 底下。
+        請勿貼上密碼、Token、`.env` 內容或完整個資。
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 嚴重度
+      description: 請同時加上對應的 `severity:*` label
+      options: [critical, major, minor, trivial]
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      placeholder: bugfix/BUG-000-<slug>
+  - type: textarea
+    id: env
+    attributes:
+      label: 環境
+      value: |
+        - Commit / Branch：
+        - OS / Python 版本：
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟
+      value: '1. '
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期結果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 實際結果
+    validations:
+      required: true
+  - type: input
+    id: test
+    attributes:
+      label: 重現測試
+      description: 能重現此問題的測試，例如 tests/integration/test_booking.py::test_xxx

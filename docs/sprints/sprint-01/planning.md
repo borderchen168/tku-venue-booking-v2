@@ -80,6 +80,8 @@
 | T-022 | 申請規則、併發與 Sprint Demo 端到端測試 | US-004, US-002, US-017, US-001 | tester | T-009, T-015, T-020 | 否（最後） |
 
 Task 檔案：`docs/backlog/tasks/T-001-*.md` ～ `T-023-*.md`（T-023 為 2026-11-06 自 T-003 拆出，編號接續，執行順序位於波次 2）。
+2026-11-07 起 Backlog 已遷移到 GitHub（IS-001）：Task 為 Issue #28～#50，對照見 `docs/backlog/github-mapping.md`，
+狀態以 GitHub Project「淡江場地預約系統」的 Sprint 1 為準。
 
 ## 建議執行順序（波次）
 

@@ -67,11 +67,13 @@ app/
   templates/            # Jinja2 樣板
   static/               # CSS / JS / 圖片
 migrations/             # Alembic
+scripts/                # 維運腳本（Backlog 遷移、Project Status 設定）
+.github/                # Issue Forms、PR template、GitHub Actions workflow
 tests/
   unit/
   integration/
 docs/
-  backlog/              # Epic / Story / Task / Bug
+  backlog/              # github-mapping.md：舊 Backlog 編號 ↔ GitHub Issue 對照（Backlog 本身在 GitHub）
   sprints/              # 各 Sprint 文件
   architecture/         # SA 產出：架構、ERD、決策紀錄（ADR）
 ```
@@ -131,36 +133,54 @@ python -m mypy app
 
 | 角色 | Subagent | 職責 | 可寫入範圍 |
 |---|---|---|---|
-| Product Owner(產品負責人) | `product-owner` | 撰寫 Epic、Story、驗收條件，排定 Backlog 優先順序 | `docs/backlog/` |
-| Scrum Master(敏捷教練) | `scrum-master` | Sprint Planning(衝刺規劃) / Review(審查) / Retrospective(回顧)、拆解 Task、追蹤狀態 | `docs/sprints/`、`docs/backlog/` 的狀態欄位 |
+| Product Owner(產品負責人) | `product-owner` | 撰寫 Epic、Story、驗收條件，排定 Backlog 優先順序 | GitHub Issues（Epic、Story）與 Project 的 `Priority`、`Story Points` |
+| Scrum Master(敏捷教練) | `scrum-master` | Sprint Planning(衝刺規劃) / Review(審查) / Retrospective(回顧)、拆解 Task、追蹤狀態 | `docs/sprints/`；GitHub Issues（Task）、sub-issue / blocked-by 關聯與 Project 的 `Status`、`Sprint` |
 | System Analyst(系統分析師) | `system-analyst` | 需求分析、系統架構、API 設計、ADR(架構決策紀錄) | `docs/architecture/` |
 | UI/UX Designer(介面設計師) | `ui-ux-designer` | 頁面流程、版面、無障礙設計、樣板與 CSS 規範 | `docs/design/`、`app/templates/`、`app/static/` |
 | DBA(資料庫管理師) | `dba` | 資料模型、ERD、索引、Alembic migration | `app/models/`、`migrations/` |
 | Backend Developer(後端工程師) | `backend-developer` | API、service、repository、認證授權 | `app/`（templates/static 除外）、`tests/` |
 | Frontend Developer(前端工程師) | `frontend-developer` | Jinja2 樣板、表單、web route、前端互動 | `app/templates/`、`app/static/`、`app/routers/web/`、`tests/` |
-| Tester(測試工程師) | `tester` | 撰寫與執行 pytest、補足覆蓋率、回報 Bug | `tests/`、`docs/backlog/bugs/` |
-| Code Reviewer(程式審查員) | `code-reviewer` | 審查正確性、可讀性、規範符合度 | **唯讀** |
-| Security Reviewer(資安審查員) | `security-reviewer` | 依 2.3 審查資安風險 | **唯讀** |
-| QA(品質保證) | `qa` | 依驗收條件與 DoD 做最終驗收 | **唯讀** |
+| Tester(測試工程師) | `tester` | 撰寫與執行 pytest、補足覆蓋率、回報 Bug | `tests/`；GitHub Issues（Bug） |
+| Code Reviewer(程式審查員) | `code-reviewer` | 審查正確性、可讀性、規範符合度 | **唯讀**（可在 PR 留言） |
+| Security Reviewer(資安審查員) | `security-reviewer` | 依 2.3 審查資安風險 | **唯讀**（可在 PR 留言） |
+| QA(品質保證) | `qa` | 依驗收條件與 DoD 做最終驗收 | **唯讀**（可在 PR 留言） |
 
 - 審查類角色（Code Reviewer、Security Reviewer、QA）只回報結果，不直接修改程式；修正由開發角色處理。
+  「唯讀」指不修改 repo 檔案、不執行 commit / push / merge；以 `gh pr comment` 在 PR 留下審查結果是允許的。
+- 會寫入 GitHub 的角色（PO、Scrum Master、Tester、審查類角色）只能操作本 repo 與上述 Project，不得刪除 Issue、修改 repo 設定或 ruleset。
 - 每個 Task 只呼叫需要的角色，不需每次全員參與。
 
 ### 3.2 Scrum(敏捷開發) 流程
 
 - 一個 Sprint 以一個可展示的功能增量為目標。
 - 項目層級：**Epic(史詩) → Story(使用者故事) → Task(任務) / Bug(缺陷)**；Issue(議題) 用於未分類的問題或待釐清事項。
-- 所有項目以 Markdown 存放於本機 `docs/backlog/`，範本在 `docs/backlog/_templates/`。
+- **Backlog 以 GitHub 為唯一依據**：所有項目都是 repo `borderchen168/tku-venue-booking-v2` 的 GitHub Issue，
+  並在 GitHub Project「淡江場地預約系統」（<https://github.com/users/borderchen168/projects/2>）管理。
+  一律以 `.github/ISSUE_TEMPLATE/` 的 Issue Form 建立；操作使用 `gh issue`、`gh project`、`gh api`。
+- 2026-11-07 以前的 Markdown 項目已遷移，舊編號與 Issue 編號的對照見 `docs/backlog/github-mapping.md`。
 
-| 類型 | 編號 | 檔名範例 |
-|---|---|---|
-| Epic | `EP-001` | `docs/backlog/epics/EP-001-venue-management.md` |
-| Story | `US-001` | `docs/backlog/stories/US-001-book-venue.md` |
-| Task | `T-001` | `docs/backlog/tasks/T-001-booking-api.md` |
-| Bug | `BUG-001` | `docs/backlog/bugs/BUG-001-overlap-check.md` |
-| Issue | `IS-001` | `docs/backlog/issues/IS-001-sso-evaluation.md` |
+| 類型 | 編號（標題前綴） | 標題範例 | Label |
+|---|---|---|---|
+| Epic | `EP-001` | `[EP-001] 場地與借用狀況查詢` | `type:epic` |
+| Story | `US-001` | `[US-001] 公開瀏覽場地清單與場地資訊` | `type:story` |
+| Task | `T-001` | `[T-001] 系統架構、ERD、API 與路由設計` | `type:task` |
+| Bug | `BUG-001` | `[BUG-001] 時段重疊檢查漏判` | `type:bug`、`severity:*` |
+| Issue | `IS-001` | `[IS-001] 遷移到 GitHub` | `type:issue` |
 
-- 狀態流程：`todo → in-progress → review → done`（另有 `blocked`），記錄於檔案的 frontmatter(檔頭屬性)。
+- 新項目編號沿用前綴並接續：以 GitHub 上同類型現有最大編號 +1（例如 `gh issue list --state all --search '[T-' --json title`）。
+- 文件、commit、branch 引用項目時寫舊式編號（例如 T-012）；在 Issue / PR 中可再加上 `#N` 連結。
+
+| GitHub 功能 | 用途 |
+|---|---|
+| Sub-issues(子議題) | 階層：Epic → Story → Task；Bug 掛在相關的 Story 或 Task 底下。Task 對應多個 Story 時以主要 Story 為父項目，其餘寫在內文「相關 Story」 |
+| Issue dependencies（blocked by） | Task 之間的相依關係 |
+| Label `role:<subagent>` | 負責角色（GitHub assignee 只能指定真人帳號，不用於 subagent） |
+| Project 欄位 `Status` | `Todo → In Progress → Review → Done`（另有 `Blocked`） |
+| Project 欄位 `Priority` | MoSCoW：`Must` / `Should` / `Could` / `Won't` |
+| Project 欄位 `Story Points` | Story 估點 |
+| Project 欄位 `Sprint` | Iteration（每個 Sprint 兩週） |
+
+- Issue 在 PR 合併時由 `Closes #N` 自動關閉，Project `Status` 同步改為 `Done`。
 - Story 的驗收條件使用 Given / When / Then 格式。
 - Sprint 文件放在 `docs/sprints/sprint-NN/`：`planning.md`、`review.md`、`retro.md`。
 
@@ -172,7 +192,9 @@ python -m mypy app
 3. `pytest` 全部通過，branch coverage(分支覆蓋率) ≥ 80%。
 4. Code Reviewer 與 Security Reviewer 審查通過（無未解決的 blocking 問題）。
 5. QA 依驗收條件驗收通過。
-6. 文件與 `.env.example` 已同步更新，Backlog 狀態改為 `done`。
+6. 文件與 `.env.example` 已同步更新。
+
+以上全部通過後經 PR squash merge 回 `main`，對應 Issue 自動關閉、Project `Status` 改為 `Done`，項目才算完成。
 
 ### 3.3 測試
 
@@ -201,17 +223,27 @@ git worktree add .worktrees/T-012-booking-api -b feature/T-012-booking-api
 
 - 每個 worktree 需要建立自己的 `.venv` 與 `.env`，SQLite 檔案也獨立，避免互相影響。
 - 合併前先 rebase 到最新的 `main`；若 Alembic 出現多個 head，必須先解決再合併。
-- 通過 DoD 後以 squash merge(壓縮合併) 合併回 `main`，再移除 worktree 與 branch：
+- 一律透過 **Pull Request(合併請求)** 合併。`main` 受 ruleset 保護：禁止直接 push 與 force push、必須經 PR、只允許 squash merge(壓縮合併)、線性歷史。
+
+**流程**：
+
+1. 開始 Task：Project `Status` 改為 `In Progress`，建立 worktree 與 branch。
+2. 開發完成、本機 DoD 指令通過後 push branch 並開 PR（使用 `.github/pull_request_template.md`）；Project `Status` 改為 `Review`。
+   - PR 標題採 Conventional Commits（squash 後即為 `main` 上的 commit 訊息）。
+   - PR 內文以 `Closes #N` 連結對應的 Issue。
+3. Code Reviewer、Security Reviewer、QA 以 `gh pr comment` 把審查結果貼到 PR；修正後在 PR 上複審。
+4. CI 通過，且審查留言中沒有未解決的 blocking 問題後，以 squash merge 合併。個人帳號無法 approve 自己的 PR，因此不要求 approve 數。
+5. 合併後 Issue 自動關閉；移除本機 worktree 與 branch。
 
 ```bash
-git switch main
-git merge --squash feature/T-012-booking-api
-git commit
+git push -u origin feature/T-012-booking-api
+gh pr create --title 'feat(booking): 新增場地預約 API (T-012)' --body-file <pr-body.md>
+gh pr checks --watch
+gh pr merge --squash --delete-branch
 git worktree remove .worktrees/T-012-booking-api
 git branch -D feature/T-012-booking-api
+git switch main && git pull --ff-only
 ```
-
-- 目前只使用本機 repository(儲存庫)；之後加入 remote(遠端) 時，改為 Pull Request 流程。
 
 ---
 
@@ -244,9 +276,29 @@ python -m pip_audit -r requirements.lock
 python -m pip_audit -r requirements-dev.lock
 ```
 
+### Backlog（GitHub）
+
+```bash
+# 查詢（--search 以標題前綴找舊式編號）
+gh issue list --state all --search '"[T-004]" in:title'
+gh issue view 31
+python scripts/set_status.py T-004                    # 顯示 Project 的 Status
+
+# 建立（內文段落與 .github/ISSUE_TEMPLATE/ 的 Issue Form 相同；內文先寫到暫存檔）
+gh issue create --title '[T-024] <標題>' --label type:task --label role:backend-developer --body-file <body.md>
+gh project item-add 2 --owner borderchen168 --url <issue URL>   # sub-issue 會自動加入，Epic 等頂層項目需手動加入
+
+# 階層與相依（-F 參數需要 issue 的資料庫 id：gh api repos/borderchen168/tku-venue-booking-v2/issues/<N> --jq .id）
+gh api repos/borderchen168/tku-venue-booking-v2/issues/<父 N>/sub_issues -F sub_issue_id=<子 id>
+gh api repos/borderchen168/tku-venue-booking-v2/issues/<N>/dependencies/blocked_by -F issue_id=<相依 id>
+
+# Project 欄位
+python scripts/set_status.py T-004 'In Progress'      # Todo / In Progress / Review / Done / Blocked
+# Priority、Story Points、Sprint：在 Project 網頁設定，或以 gh project item-edit 指定 field / option id
+```
+
 ---
 
 ## 5. 後續階段（目前不實作）
 
-- 加入 GitHub 等 remote repository，改用 Pull Request 流程與 CI(持續整合)。
 - 評估改用學校 SSO(單一登入) 取代本機帳號。
