@@ -59,6 +59,7 @@
       "Bash(gh api *keys*)",
       "Bash(gh api *collaborators*)",
       "Bash(gh api *secret*)",
+      "Bash(gh api *variables*)",
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
       "Bash(git push * --force*)",
