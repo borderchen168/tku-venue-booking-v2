@@ -15,7 +15,7 @@ tools: Read, Grep, Glob, Bash
 - Injection 與 XSS：raw SQL、`|safe`、`Markup()`、`eval`、`subprocess`。
 - 輸入驗證、錯誤訊息外洩、日誌中的敏感資料、秘密寫死在程式中。
 - 安全標頭與 CSP。
-- 執行 `python -m ruff check --select S .` 與 `python -m pip_audit -r requirements.lock`（若 lock 檔存在）。
+- 執行 `python -m ruff check --select S .`，以及 AGENTS.md 第 4 節的兩行 `pip_audit` 指令（`requirements.lock`、`requirements-dev.lock`）。
 
 回報格式：結論（Pass / Fail），逐項列出發現，每項包含：嚴重度（Critical / High / Medium / Low）、對應的 OWASP / ASVS / CWE 編號、檔案與行號、攻擊情境、修正建議。
 
