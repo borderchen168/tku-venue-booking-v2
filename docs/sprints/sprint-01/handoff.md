@@ -12,7 +12,7 @@
 - **2026-11-07 已遷移到 GitHub**（IS-001，#51）：repo <https://github.com/borderchen168/tku-venue-booking-v2>，
   Backlog 以 Issues 與 Project「淡江場地預約系統」（<https://github.com/users/borderchen168/projects/2>）為準，
   舊編號對照見 `docs/backlog/github-mapping.md`。T-001～T-003 為已關閉的 #28～#30。
-- 接續 GitHub 遷移的 IS-002（CI，#52）與 IS-003（CD，#53），完成後再開始波次 2。
+- GitHub 遷移的 IS-002（CI，#52）已由 PR #55 完成；接續 IS-003（CD，#53），完成後再開始波次 2。
 - 舊的 `borderchen168/tku-venue-booking` repo 與其 Project #1 是另一個較早的示範，**不得修改**。
 
 ## 2. 下一步：波次 2（等使用者說開始）
@@ -24,7 +24,7 @@
 | T-023 | backend-developer | HTTP 安全中介層、表單限制、統一錯誤處理（須於 T-007 開始前合併） |
 
 - 三個可平行，各自開 worktree（`git worktree add .worktrees/<T-xxx-slug> -b feature/<T-xxx-slug>`），各自建 `.venv` 與 `.env`。
-- 建 venv：`python -m pip install --require-hashes -r requirements-dev.lock`，再另外 `python -m pip install -e . --no-deps`。
+- 建 venv：`python -m pip install --require-hashes -r requirements-dev.lock`，再另外 `python -m pip install -e . --no-deps --no-build-isolation`。
 - T-004 與 T-023 都會改 `app/main.py`、`tests/fixtures/`，後合併者 rebase。
 - 之後的波次見 planning.md「建議執行順序（波次）」。
 
@@ -38,7 +38,7 @@
 4. Code Reviewer ∥ Security Reviewer 平行審查（唯讀，結果回報 Orchestrator）→ Orchestrator 以 `gh pr comment` 貼到 PR → 開發角色修正（**blocking 與 non-blocking 建議都要修**）
    → push → 回原審查員複審（用 SendMessage 續用同一 agent 保留上下文）。
 5. QA 驗收，Orchestrator 把結果貼到 PR（同 worktree 同時有人改檔時，先等 QA 跑完再派修正，避免測試跑到一半檔案變動）。
-6. Orchestrator 在 Issue 勾完成條件；CI 通過（IS-002 完成前以本機 DoD 指令為準）且**使用者確認**後 `gh pr merge --squash` → `git worktree remove --force` → `git branch -D` → `git switch main && git pull --ff-only`。
+6. Orchestrator 在 Issue 勾完成條件；CI 通過（`gh pr checks`；Actions 恢復前以本機 DoD 指令為準，見 AGENTS.md 3.4 暫行段落）且**使用者確認**後 `gh pr merge --squash` → `git worktree remove --force` → `git branch -D` → `git switch main && git pull --ff-only`。
 7. 合併後**暫停**，回報使用者。
 
 注意：
