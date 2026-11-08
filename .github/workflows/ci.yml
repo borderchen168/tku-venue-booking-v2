@@ -16,15 +16,17 @@ on:
 permissions:
   contents: read
 
-# 同一 workflow + ref 為一組；PR 有新 commit 時取消舊的執行，push 到 main 則不取消（每個 commit 都要有結果）
+# PR：同一 workflow + ref 為一組，有新 commit 時取消舊的執行。
+# push 到 main：以 commit SHA 為一組，每個 commit 各自執行、互不取消（同 group 只會保留一個 pending run，故不能共用 ref）。
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
     # job name 即 required status check 名稱（main ruleset），變更時須同步調整 ruleset
     name: CI
+    # 刻意使用浮動的 ubuntu-latest（Issue #52 指定，教學用途不固定 runner 版本）
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -47,6 +49,7 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
+          # 只固定 minor（與 pyproject 的 requires-python 一致），以自動取得 patch 版的安全更新
           python-version: '3.14'
           # pip 下載快取；安裝時以 --require-hashes 驗證，快取內容被竄改也無法通過
           cache: pip
@@ -77,8 +80,10 @@ jobs:
       - name: Pytest（branch coverage ≥ 80%）
         run: python -m pytest
 
+      # --require-hashes --disable-pip：只依 lock 內容（版本與 hash）查詢，不另建 venv 安裝；
+      # 也會檢查 lock 中的 pip、setuptools、wheel、packaging（預設模式會略過這幾個）
       - name: pip-audit（requirements.lock）
-        run: python -m pip_audit -r requirements.lock
+        run: python -m pip_audit -r requirements.lock --require-hashes --disable-pip
 
       - name: pip-audit（requirements-dev.lock）
-        run: python -m pip_audit -r requirements-dev.lock
+        run: python -m pip_audit -r requirements-dev.lock --require-hashes --disable-pip

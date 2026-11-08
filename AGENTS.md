@@ -287,8 +287,8 @@ python -m ruff check --fix .
 python -m ruff format .
 python -m mypy app scripts
 python -m pytest
-python -m pip_audit -r requirements.lock
-python -m pip_audit -r requirements-dev.lock
+python -m pip_audit -r requirements.lock --require-hashes --disable-pip
+python -m pip_audit -r requirements-dev.lock --require-hashes --disable-pip
 ```
 
 ### Backlog（GitHub）

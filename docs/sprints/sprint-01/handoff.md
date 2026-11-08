@@ -12,7 +12,7 @@
 - **2026-11-07 已遷移到 GitHub**（IS-001，#51）：repo <https://github.com/borderchen168/tku-venue-booking-v2>，
   Backlog 以 Issues 與 Project「淡江場地預約系統」（<https://github.com/users/borderchen168/projects/2>）為準，
   舊編號對照見 `docs/backlog/github-mapping.md`。T-001～T-003 為已關閉的 #28～#30。
-- 接續 GitHub 遷移的 IS-002（CI，#52）與 IS-003（CD，#53），完成後再開始波次 2。
+- GitHub 遷移的 IS-002（CI，#52）已由 PR #55 完成；接續 IS-003（CD，#53），完成後再開始波次 2。
 - 舊的 `borderchen168/tku-venue-booking` repo 與其 Project #1 是另一個較早的示範，**不得修改**。
 
 ## 2. 下一步：波次 2（等使用者說開始）
