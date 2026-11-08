@@ -33,9 +33,27 @@
       "Bash(gh api *--method delete*)",
       "Bash(gh api graphql *delete*)",
       "Bash(gh api graphql *Delete*)",
-      "Bash(gh api *rulesets*)",
+      "Bash(gh api *actions/*-X*)",
+      "Bash(gh api *-X*actions/*)",
+      "Bash(gh api *actions/*--method*)",
+      "Bash(gh api *--method*actions/*)",
+      "Bash(gh api *actions/*-f*)",
+      "Bash(gh api *-f*actions/*)",
+      "Bash(gh api *actions/*-F*)",
+      "Bash(gh api *-F*actions/*)",
+      "Bash(gh api *actions/*--input*)",
+      "Bash(gh api *--input*actions/*)",
+      "Bash(gh api *rulesets*-X*)",
+      "Bash(gh api *-X*rulesets*)",
+      "Bash(gh api *rulesets*--method*)",
+      "Bash(gh api *--method*rulesets*)",
+      "Bash(gh api *rulesets*-f*)",
+      "Bash(gh api *-f*rulesets*)",
+      "Bash(gh api *rulesets*-F*)",
+      "Bash(gh api *-F*rulesets*)",
+      "Bash(gh api *rulesets*--input*)",
+      "Bash(gh api *--input*rulesets*)",
       "Bash(gh api *protection*)",
-      "Bash(gh api *actions/*)",
       "Bash(gh api *environments*)",
       "Bash(gh api *hooks*)",
       "Bash(gh api *keys*)",
@@ -53,7 +71,9 @@
     ],
     "ask": [
       "Bash(gh pr merge:*)",
-      "Bash(gh api graphql:*)"
+      "Bash(gh api graphql:*)",
+      "Bash(gh api *actions/*)",
+      "Bash(gh api *rulesets*)"
     ]
   }
 }
