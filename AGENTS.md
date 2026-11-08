@@ -248,6 +248,8 @@ git worktree add .worktrees/T-012-booking-api -b feature/T-012-booking-api
 4. CI 通過，且審查留言中沒有未解決的 blocking 問題後，**經使用者確認**，由主對話以 squash merge 合併。個人帳號無法 approve 自己的 PR，因此不要求 approve 數。
    CI（`.github/workflows/ci.yml`）在 PR 與 push 到 `main` 時執行 DoD 第 2、3 項與 `pip_audit`，並設為 `main` ruleset 的 required status check。
    修改 workflow 時：Actions 以完整 commit SHA 固定版本、明確寫最小 `permissions:`、不使用 `pull_request_target`。
+   **暫行（2026-11-08 起）**：GitHub 帳號層級的 Actions 目前不會執行任何 workflow（已向 GitHub 回報），`CI` 尚未設為 required status check；
+   恢復前以本機 DoD 指令的結果為準，恢復且 `main` 上的 CI 通過後，再設定 required status check 並刪除本段。
 5. 合併後 Issue 自動關閉、遠端 branch 自動刪除；移除本機 worktree 與 branch。
 
 ```bash
