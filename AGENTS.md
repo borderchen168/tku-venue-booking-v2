@@ -68,7 +68,7 @@ app/
   static/               # CSS / JS / 圖片
 migrations/             # Alembic
 scripts/                # 維運腳本（Backlog 遷移、Project Status 設定）
-.github/                # Issue Forms、PR template；GitHub Actions workflow 於 IS-002 加入
+.github/                # Issue Forms、PR template、GitHub Actions workflow（workflows/ci.yml）
 SECURITY.md             # 資安漏洞私下回報流程
 tests/
   unit/
@@ -246,7 +246,8 @@ git worktree add .worktrees/T-012-booking-api -b feature/T-012-booking-api
 3. Code Reviewer、Security Reviewer、QA 審查後回報結果，由主對話以 `gh pr comment` 貼到 PR；修正後在 PR 上複審。
    Security Review 的公開留言只寫問題類型、位置與修正方向，不寫可直接利用的攻擊步驟。
 4. CI 通過，且審查留言中沒有未解決的 blocking 問題後，**經使用者確認**，由主對話以 squash merge 合併。個人帳號無法 approve 自己的 PR，因此不要求 approve 數。
-   IS-002（CI）完成前 repo 沒有 GitHub Actions，`gh pr checks` 會回報 no checks；此期間以本機 DoD 指令的結果為準。
+   CI（`.github/workflows/ci.yml`）在 PR 與 push 到 `main` 時執行 DoD 第 2、3 項與 `pip_audit`，並設為 `main` ruleset 的 required status check。
+   修改 workflow 時：Actions 以完整 commit SHA 固定版本、明確寫最小 `permissions:`、不使用 `pull_request_target`。
 5. 合併後 Issue 自動關閉、遠端 branch 自動刪除；移除本機 worktree 與 branch。
 
 ```bash
@@ -271,7 +272,7 @@ python -m pip install --upgrade pip pip-tools   # bootstrap 例外：此步驟�
 python -m piptools compile --strip-extras --generate-hashes --allow-unsafe --extra dev -o requirements-dev.lock pyproject.toml
 python -m piptools compile --strip-extras --generate-hashes -o requirements.lock pyproject.toml
 python -m pip install --require-hashes -r requirements-dev.lock
-python -m pip install -e . --no-deps        # 需在上一行之後、分開執行（本專案本身沒有 hash）
+python -m pip install -e . --no-deps --no-build-isolation   # 需在上一行之後、分開執行（本專案本身沒有 hash；建置用 lock 內的 setuptools）
 pre-commit install
 
 # 設定

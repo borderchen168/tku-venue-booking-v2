@@ -24,7 +24,7 @@
 | T-023 | backend-developer | HTTP 安全中介層、表單限制、統一錯誤處理（須於 T-007 開始前合併） |
 
 - 三個可平行，各自開 worktree（`git worktree add .worktrees/<T-xxx-slug> -b feature/<T-xxx-slug>`），各自建 `.venv` 與 `.env`。
-- 建 venv：`python -m pip install --require-hashes -r requirements-dev.lock`，再另外 `python -m pip install -e . --no-deps`。
+- 建 venv：`python -m pip install --require-hashes -r requirements-dev.lock`，再另外 `python -m pip install -e . --no-deps --no-build-isolation`。
 - T-004 與 T-023 都會改 `app/main.py`、`tests/fixtures/`，後合併者 rebase。
 - 之後的波次見 planning.md「建議執行順序（波次）」。
 
@@ -38,7 +38,7 @@
 4. Code Reviewer ∥ Security Reviewer 平行審查（唯讀，結果回報 Orchestrator）→ Orchestrator 以 `gh pr comment` 貼到 PR → 開發角色修正（**blocking 與 non-blocking 建議都要修**）
    → push → 回原審查員複審（用 SendMessage 續用同一 agent 保留上下文）。
 5. QA 驗收，Orchestrator 把結果貼到 PR（同 worktree 同時有人改檔時，先等 QA 跑完再派修正，避免測試跑到一半檔案變動）。
-6. Orchestrator 在 Issue 勾完成條件；CI 通過（IS-002 完成前以本機 DoD 指令為準）且**使用者確認**後 `gh pr merge --squash` → `git worktree remove --force` → `git branch -D` → `git switch main && git pull --ff-only`。
+6. Orchestrator 在 Issue 勾完成條件；CI 通過（`gh pr checks`）且**使用者確認**後 `gh pr merge --squash` → `git worktree remove --force` → `git branch -D` → `git switch main && git pull --ff-only`。
 7. 合併後**暫停**，回報使用者。
 
 注意：

@@ -1,0 +1,84 @@
+# CI：於 PR（目標 main）與 push 到 main 時執行 DoD 第 2、3 項的自動檢查與 pip_audit（IS-002）。
+# 資安注意事項：
+# - 不使用 pull_request_target（會以 base repo 權限執行 fork 的程式碼）。
+# - run: 中不得直接內插 ${{ github.event.* }} 等不可信內容（script injection）；需要時先放進 env 再以 "$VAR" 引用。
+# - Actions 一律以完整 commit SHA 固定版本；升級時同步更新 SHA 與版本註解。
+# - 不使用任何 repo secret。
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 最小權限：只需讀取程式碼
+permissions:
+  contents: read
+
+# 同一 workflow + ref 為一組；PR 有新 commit 時取消舊的執行，push 到 main 則不取消（每個 commit 都要有結果）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    # job name 即 required status check 名稱（main ruleset），變更時須同步調整 ruleset
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      # 測試 fixture（tests/fixtures/settings.py）會清除 Settings 的環境變數並自行提供設定；
+      # 此處只作為 fixture 以外（例如 import 時）讀取設定的保底值，SECRET_KEY 於下方步驟隨機產生。
+      APP_ENV: test
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      PYTHONUTF8: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # 不把 GITHUB_TOKEN 留在 .git/config，避免後續步驟讀取
+          persist-credentials: false
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: '3.14'
+          # pip 下載快取；安裝時以 --require-hashes 驗證，快取內容被竄改也無法通過
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --require-hashes -r requirements-dev.lock
+          # --no-build-isolation：使用 lock 檔中已驗證 hash 的 setuptools，不另外從 PyPI 抓未驗證的建置相依
+          python -m pip install -e . --no-deps --no-build-isolation
+
+      - name: Generate SECRET_KEY
+        # 每次執行隨機產生，先遮蔽再寫入 GITHUB_ENV，不會出現在日誌中
+        run: |
+          secret_key="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          echo "::add-mask::${secret_key}"
+          echo "SECRET_KEY=${secret_key}" >> "$GITHUB_ENV"
+
+      - name: Ruff check
+        run: python -m ruff check .
+
+      - name: Ruff format check
+        run: python -m ruff format --check .
+
+      - name: Mypy
+        run: python -m mypy app scripts
+
+      - name: Pytest（branch coverage ≥ 80%）
+        run: python -m pytest
+
+      - name: pip-audit（requirements.lock）
+        run: python -m pip_audit -r requirements.lock
+
+      - name: pip-audit（requirements-dev.lock）
+        run: python -m pip_audit -r requirements-dev.lock
